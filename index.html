@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Steuerordner</title>
+  <meta name="description" content="Private App zum Scannen und Ablegen von Steuerbelegen – vorbereitet für die Online-Steuererklärung.">
+  <meta name="theme-color" content="#1d4ed8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Steuerordner">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <button id="backBtn" class="iconbtn" aria-label="Zurück">‹</button>
+    <h1 id="title">Steuerordner</h1>
+    <div id="headerRight"></div>
+  </header>
+  <main id="view" aria-live="polite"></main>
+
+  <input type="file" id="camInput" accept="image/*" capture="environment" hidden>
+  <input type="file" id="galInput" accept="image/*,application/pdf,.pdf" multiple hidden>
+  <input type="file" id="zipInput" accept=".zip,application/zip" hidden>
+
+  <div id="toast" role="status"></div>
+  <div id="busy"><div class="spinner"></div><span>Bitte warten …</span></div>
+  <dialog id="dlg"></dialog>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
