@@ -65,12 +65,27 @@ python3 -m http.server 8080
 Dann `http://localhost:8080` öffnen. Ein `file://`-Aufruf reicht nicht, weil der Browser
 für Kamera, Service Worker und Module eine echte Web-Adresse braucht.
 
-## Backup
+## Abgleich zwischen Handy und Computer (iCloud Drive)
 
-Alle Daten liegen im Browser-Speicher (IndexedDB) des Geräts. Vor dem Löschen von Browserdaten oder
-einem Gerätewechsel unter **Einstellungen → Backup erstellen** ein ZIP sichern. Dieses lässt sich auf
-jedem Gerät über **Backup wiederherstellen** wieder einspielen (alle Jahre, Ordner, Dokumente und Status).
-«Speicher dauerhaft schützen» bittet den Browser, die Daten nicht bei Platzmangel zu löschen.
+Die App hat keinen Server. Als gemeinsamer Speicher dient eine **Sync-Datei** (`Steuerordner_Sync.zip`)
+in iCloud Drive oder einem anderen Ordner der Dateien-App:
+
+1. **Einstellungen → Sync-Datei speichern.** Auf dem iPhone öffnet sich das Teilen-Menü:
+   «In Dateien sichern» → iCloud Drive → vorhandene Datei ersetzen. Am Computer landet die Datei
+   als Download, von dort in den iCloud-Drive-Ordner verschieben.
+2. Auf dem anderen Gerät **Einstellungen → Sync-Datei einlesen** und dieselbe Datei auswählen.
+3. Dort weiterarbeiten und am Schluss wieder **Sync-Datei speichern**.
+
+Beim Einlesen werden die Daten zusammengeführt, nicht überschrieben:
+
+- Dokumente mit gleicher ID: die neuere Version gewinnt (auch Titel, Notiz, Status «hochgeladen»).
+- Auf einem Gerät gelöschte Dokumente werden auch auf dem anderen entfernt.
+- Standardordner sind auf allen Geräten identisch, eigene Ordner werden über Jahr und Name erkannt.
+  Es entstehen keine Duplikate, auch wenn die Datei mehrfach eingelesen wird.
+
+Die Startseite zeigt, wann der letzte Abgleich war und wie viele Änderungen seither anstehen.
+Die Sync-Datei ist zugleich das Backup. «Speicher dauerhaft schützen» in den Einstellungen bittet
+den Browser, die lokalen Daten nicht bei Platzmangel zu löschen.
 
 ## Technik
 
@@ -85,5 +100,5 @@ Reines HTML/CSS/JavaScript ohne Build-Schritt und ohne Abhängigkeiten.
 | `zip.js` | ZIP schreiben (Store) und lesen (Store/Deflate) |
 | `sw.js`, `manifest.webmanifest` | Offline-Betrieb und Installation als App |
 
-Bei Änderungen an den Dateien die Cache-Version in `sw.js` (`steuerordner-v1`) hochzählen,
+Bei Änderungen an den Dateien die Cache-Version in `sw.js` (`steuerordner-v2`) hochzählen,
 damit installierte Apps die neue Version laden.

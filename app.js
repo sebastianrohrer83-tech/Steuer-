@@ -99,6 +99,9 @@ const promptDlg = (title, label, value = '', okLabel = 'Speichern') => dialog(`
 async function getSetting(k, def) { const r = await db.get('settings', k); return r ? r.value : def; }
 async function setSetting(k, v) { await db.put('settings', { key: k, value: v }); }
 
+// Standardordner bekommen eine feste ID je Jahr, damit sie auf allen Geräten identisch sind.
+const builtinId = (year, key) => `${year}-${key}`;
+
 async function createDefaultFolders(year, onlyMissing = false) {
   const existing = await db.getAllBy('folders', 'year', year);
   const have = new Set(existing.map((f) => f.builtin).filter(Boolean));
@@ -106,11 +109,37 @@ async function createDefaultFolders(year, onlyMissing = false) {
   let created = 0;
   for (const [i, f] of DEFAULT_FOLDERS.entries()) {
     if (onlyMissing && have.has(f.key)) continue;
-    await db.put('folders', { id: uid(), year, name: f.name, icon: f.icon, hint: f.hint, order: onlyMissing ? order++ : i, builtin: f.key, createdAt: Date.now() });
+    await db.put('folders', { id: builtinId(year, f.key), year, name: f.name, icon: f.icon, hint: f.hint, order: onlyMissing ? order++ : i, builtin: f.key, createdAt: Date.now() });
     created++;
   }
   return created;
 }
+
+// Ältere Installationen hatten zufällige IDs für Standardordner: einmalig umstellen.
+async function migrateFolderIds() {
+  if (await getSetting('migratedFolderIds')) return;
+  for (const f of await db.getAll('folders')) {
+    if (!f.builtin) continue;
+    const want = builtinId(f.year, f.builtin);
+    if (f.id === want) continue;
+    const clash = await db.get('folders', want);
+    const targetId = clash ? clash.id : want;
+    if (!clash) await db.put('folders', { ...f, id: want });
+    for (const d of await db.getAllBy('docs', 'folderId', f.id)) { d.folderId = targetId; await db.put('docs', d); }
+    await db.del('folders', f.id);
+  }
+  await setSetting('migratedFolderIds', true);
+}
+
+// Gelöschte Dokumente werden gemerkt, damit das Löschen beim Abgleich auf andere Geräte übertragen wird.
+async function getTombstones() { return (await getSetting('tombstones', {})) || {}; }
+async function markDeleted(ids) {
+  const t = await getTombstones();
+  const now = Date.now();
+  for (const id of ids) t[id] = now;
+  await setSetting('tombstones', t);
+}
+async function deleteDoc(id) { await db.del('docs', id); await markDeleted([id]); }
 
 async function ensureYear(year) {
   if (!(await db.get('years', year))) {
@@ -120,6 +149,7 @@ async function ensureYear(year) {
 }
 
 async function currentYear() {
+  await migrateFolderIds();
   let y = await getSetting('year');
   if (!y) { y = new Date().getFullYear(); await setSetting('year', y); }
   await ensureYear(y);
@@ -277,67 +307,119 @@ async function exportYearZip(year, onlyNotUploaded) {
   } finally { busy(false); }
 }
 
-async function createBackup() {
-  busy(true, 'Backup wird erstellt …');
-  try {
-    const zip = new ZipWriter();
-    const years = await db.getAll('years');
-    const folders = await db.getAll('folders');
-    const docs = await db.getAll('docs');
-    const manifest = { app: 'steuerordner', version: 1, createdAt: Date.now(), years, folders, docs: [] };
-    for (const d of docs) {
-      const entry = { ...d, pages: undefined, file: undefined, files: [] };
-      if (d.kind === 'pdf' && d.file) {
-        const name = `files/${d.id}/dokument.pdf`;
-        zip.add(name, new Uint8Array(await d.file.arrayBuffer()));
-        entry.files.push({ name });
-      } else {
-        for (const [i, p] of (d.pages || []).entries()) {
-          const name = `files/${d.id}/seite-${String(i + 1).padStart(2, '0')}.jpg`;
-          zip.add(name, new Uint8Array(await p.blob.arrayBuffer()));
-          entry.files.push({ name, w: p.w, h: p.h });
-        }
+const SYNC_FILENAME = 'Steuerordner_Sync.zip';
+
+async function buildSyncZip() {
+  const zip = new ZipWriter();
+  const years = await db.getAll('years');
+  const folders = await db.getAll('folders');
+  const docs = await db.getAll('docs');
+  const manifest = { app: 'steuerordner', version: 2, createdAt: Date.now(), years, folders, docs: [], tombstones: await getTombstones() };
+  for (const d of docs) {
+    const entry = { ...d, pages: undefined, file: undefined, files: [] };
+    if (d.kind === 'pdf' && d.file) {
+      const name = `files/${d.id}/dokument.pdf`;
+      zip.add(name, new Uint8Array(await d.file.arrayBuffer()));
+      entry.files.push({ name });
+    } else {
+      for (const [i, p] of (d.pages || []).entries()) {
+        const name = `files/${d.id}/seite-${String(i + 1).padStart(2, '0')}.jpg`;
+        zip.add(name, new Uint8Array(await p.blob.arrayBuffer()));
+        entry.files.push({ name, w: p.w, h: p.h });
       }
-      manifest.docs.push(entry);
     }
-    zip.add('manifest.json', new TextEncoder().encode(JSON.stringify(manifest)));
-    const stamp = new Date().toISOString().slice(0, 10);
-    download(zip.finish(), `Steuerordner_Backup_${stamp}.zip`);
-    toast('Backup erstellt.');
+    manifest.docs.push(entry);
+  }
+  zip.add('manifest.json', new TextEncoder().encode(JSON.stringify(manifest)));
+  return zip.finish();
+}
+
+// Sync-Datei speichern: auf dem Handy über das Teilen-Menü («In Dateien sichern» → iCloud Drive),
+// am Computer als Download in den iCloud-Drive-Ordner.
+async function saveSyncFile(share) {
+  busy(true, 'Sync-Datei wird erstellt …');
+  try {
+    const blob = await buildSyncZip();
+    if (share) await shareOrDownload(blob, SYNC_FILENAME, 'Steuerordner Sync-Datei'); else download(blob, SYNC_FILENAME);
+    await setSetting('lastSync', Date.now());
+    toast('Sync-Datei erstellt. In iCloud Drive ablegen (vorhandene Datei ersetzen).');
   } finally { busy(false); }
 }
 
-async function restoreBackup(file) {
-  busy(true, 'Backup wird eingelesen …');
+// Sync-Datei einlesen und mit dem lokalen Bestand zusammenführen:
+// - Dokumente: gleiche ID → neuere Version gewinnt; Löschungen werden übernommen
+// - Ordner: Standardordner über ihre feste ID, eigene Ordner über Jahr + Name (keine Duplikate)
+async function mergeSyncFile(file) {
+  busy(true, 'Sync-Datei wird eingelesen …');
   try {
     const entries = await readZip(await file.arrayBuffer());
     const mf = entries.find((e) => e.name === 'manifest.json');
-    if (!mf) throw new Error('Kein Steuerordner-Backup (manifest.json fehlt).');
+    if (!mf) throw new Error('Keine Steuerordner-Sync-Datei (manifest.json fehlt).');
     const manifest = JSON.parse(new TextDecoder().decode(mf.data));
-    if (manifest.app !== 'steuerordner') throw new Error('Unbekanntes Backup-Format.');
+    if (manifest.app !== 'steuerordner') throw new Error('Unbekanntes Dateiformat.');
     const byName = new Map(entries.map((e) => [e.name, e.data]));
-    for (const y of manifest.years) await db.put('years', y);
-    for (const f of manifest.folders) await db.put('folders', f);
-    let n = 0;
-    for (const d of manifest.docs) {
+    const stats = { added: 0, updated: 0, deleted: 0, folders: 0 };
+
+    for (const y of manifest.years || []) if (!(await db.get('years', y.year))) await db.put('years', y);
+
+    const localFolders = await db.getAll('folders');
+    const folderMap = new Map(); // ID aus der Datei → lokale ID
+    for (const f of manifest.folders || []) {
+      let match = localFolders.find((l) => l.id === f.id);
+      if (!match && f.builtin) match = localFolders.find((l) => l.year === f.year && l.builtin === f.builtin);
+      if (!match) match = localFolders.find((l) => l.year === f.year && l.name.trim().toLowerCase() === String(f.name).trim().toLowerCase());
+      if (match) { folderMap.set(f.id, match.id); continue; }
+      const nf = f.builtin ? { ...f, id: builtinId(f.year, f.builtin) } : { ...f };
+      await db.put('folders', nf);
+      localFolders.push(nf);
+      folderMap.set(f.id, nf.id);
+      stats.folders++;
+    }
+
+    const localTomb = await getTombstones();
+    const remoteTomb = manifest.tombstones || {};
+    for (const d of manifest.docs || []) {
+      const delAt = localTomb[d.id];
+      if (delAt && delAt >= (d.updatedAt || d.createdAt || 0)) continue; // hier gelöscht, dort älter
+      const existing = await db.get('docs', d.id);
+      if (existing && (existing.updatedAt || existing.createdAt || 0) >= (d.updatedAt || d.createdAt || 0)) continue;
       const doc = { ...d };
       delete doc.files;
+      doc.folderId = folderMap.get(d.folderId) || d.folderId;
       if (d.kind === 'pdf') {
         const data = byName.get(d.files[0] && d.files[0].name);
         if (!data) continue;
         doc.file = new Blob([data], { type: 'application/pdf' });
       } else {
         doc.pages = [];
-        for (const f of d.files) {
+        for (const f of d.files || []) {
           const data = byName.get(f.name);
           if (data) doc.pages.push({ blob: new Blob([data], { type: 'image/jpeg' }), w: f.w, h: f.h });
         }
+        if (!doc.pages.length) continue;
       }
       await db.put('docs', doc);
-      n++;
+      if (existing) stats.updated++; else stats.added++;
     }
-    toast(`${n} Dokument(e) wiederhergestellt.`);
+
+    for (const [id, delAt] of Object.entries(remoteTomb)) {
+      const local = await db.get('docs', id);
+      if (local && (local.updatedAt || local.createdAt || 0) < delAt) { await db.del('docs', id); stats.deleted++; }
+      if (!localTomb[id] || localTomb[id] < delAt) localTomb[id] = delAt;
+    }
+    await setSetting('tombstones', localTomb);
+    await setSetting('lastSync', Date.now());
+    toast(`Abgleich fertig: ${stats.added} neu, ${stats.updated} aktualisiert, ${stats.deleted} gelöscht${stats.folders ? `, ${stats.folders} Ordner` : ''}.`, 4500);
   } finally { busy(false); }
+}
+
+async function changesSinceSync() {
+  const last = await getSetting('lastSync', 0);
+  if (!last) return null;
+  const docs = await db.getAll('docs');
+  const t = await getTombstones();
+  const n = docs.filter((d) => (d.updatedAt || d.createdAt) > last).length + Object.values(t).filter((x) => x > last).length;
+  return { last, n };
 }
 
 // ---------------------------------------------------------------------------
@@ -415,6 +497,7 @@ async function renderHome() {
   const upBy = {};
   for (const d of docs) { countBy[d.folderId] = (countBy[d.folderId] || 0) + 1; if (d.uploaded) upBy[d.folderId] = (upBy[d.folderId] || 0) + 1; }
   const uploaded = docs.filter((d) => d.uploaded).length;
+  const sync = await changesSinceSync();
   setHeader('Steuerordner', { right: `<a class="iconbtn" href="#/settings" title="Einstellungen" aria-label="Einstellungen">⚙︎</a>` });
   view().innerHTML = `
     <section class="yearbar">
@@ -423,6 +506,7 @@ async function renderHome() {
       </label>
       <div class="stats">${docs.length} Dokument${docs.length === 1 ? '' : 'e'} · ${uploaded} hochgeladen</div>
       ${docs.length ? `<div class="progress"><div style="width:${Math.round((uploaded / docs.length) * 100)}%"></div></div>` : ''}
+      <a class="syncline ${sync && sync.n ? 'pending' : ''}" href="#/settings">${sync ? `Letzter Abgleich ${fmtDate(sync.last)}${sync.n ? ` · ${sync.n} Änderung${sync.n === 1 ? '' : 'en'} noch nicht abgeglichen` : ' · alles abgeglichen'}` : 'Noch kein Abgleich mit anderen Geräten'} ›</a>
     </section>
     <section class="grid">
       ${folders.map((f) => `
@@ -528,11 +612,12 @@ async function renderFolder(folderId) {
         const n = await promptDlg('Symbol', 'Emoji oder kurzes Zeichen', folder.icon || '📁');
         if (n) { folder.icon = n.slice(0, 4); await db.put('folders', folder); render(); }
       } else if (r === 'markAll') {
-        for (const d of docs) { d.uploaded = true; d.uploadedAt = Date.now(); await db.put('docs', d); }
+        for (const d of docs) { d.uploaded = true; d.uploadedAt = Date.now(); d.updatedAt = Date.now(); await db.put('docs', d); }
         render();
       } else if (r === 'delete') {
         const ok = await confirmDlg('Ordner löschen?', docs.length ? `Der Ordner enthält ${docs.length} Dokument(e). Diese werden unwiderruflich gelöscht.` : 'Der Ordner wird gelöscht.');
         if (!ok) return;
+        await markDeleted(docs.map((d) => d.id));
         for (const d of docs) await db.del('docs', d.id);
         await db.del('folders', folder.id);
         location.hash = '#/';
@@ -594,6 +679,7 @@ async function renderDoc(docId, params) {
   $('#docUploaded').onchange = async (e) => {
     doc.uploaded = e.target.checked;
     doc.uploadedAt = doc.uploaded ? Date.now() : null;
+    doc.updatedAt = Date.now();
     await db.put('docs', doc);
     toast(doc.uploaded ? 'Als hochgeladen markiert.' : 'Markierung entfernt.');
   };
@@ -617,15 +703,17 @@ async function renderDoc(docId, params) {
       window.open(blobUrl(doc.pages[i].blob), '_blank');
     } else if (a === 'rotate') {
       busy(true, 'Seite wird gedreht …');
-      try { doc.pages[i] = await rotatePage(doc.pages[i]); await db.put('docs', doc); render(); } finally { busy(false); }
+      try { doc.pages[i] = await rotatePage(doc.pages[i]); doc.updatedAt = Date.now(); await db.put('docs', doc); render(); } finally { busy(false); }
     } else if (a === 'up' || a === 'down') {
       const j = a === 'up' ? i - 1 : i + 1;
       [doc.pages[i], doc.pages[j]] = [doc.pages[j], doc.pages[i]];
+      doc.updatedAt = Date.now();
       await db.put('docs', doc); render();
     } else if (a === 'delPage') {
       if (doc.pages.length === 1) { toast('Die letzte Seite kann nicht gelöscht werden. Lösche stattdessen das Dokument.'); return; }
       if (!(await confirmDlg('Seite löschen?', `Seite ${i + 1} wird entfernt.`))) return;
       doc.pages.splice(i, 1);
+      doc.updatedAt = Date.now();
       await db.put('docs', doc); render();
     } else if (a === 'addPageCam' || a === 'addPagePick') {
       const files = (await pickFiles({ camera: a === 'addPageCam' })).filter((f) => f.type.startsWith('image/'));
@@ -642,10 +730,10 @@ async function renderDoc(docId, params) {
           <button type="button" data-value="cancel" class="btn ghost">Abbrechen</button></div>`);
       if (r === 'move') {
         const f = await chooseFolder(year, 'Verschieben nach …');
-        if (f) { doc.folderId = f.id; await db.put('docs', doc); location.hash = `#/f/${f.id}`; }
+        if (f) { doc.folderId = f.id; doc.updatedAt = Date.now(); await db.put('docs', doc); location.hash = `#/f/${f.id}`; }
       } else if (r === 'delete') {
         if (await confirmDlg('Dokument löschen?', 'Das Dokument mit allen Seiten wird unwiderruflich gelöscht.')) {
-          await db.del('docs', doc.id);
+          await deleteDoc(doc.id);
           location.hash = `#/f/${doc.folderId}`;
         }
       }
@@ -665,6 +753,7 @@ async function renderSettings() {
     storage = `Belegt: ${fmtBytes(e.usage || 0)} von ca. ${fmtBytes(e.quota || 0)}`;
   }
   const persisted = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : false;
+  const sync = await changesSinceSync();
   setHeader('Einstellungen', { back: '#/' });
   view().innerHTML = `
     <section class="settings">
@@ -685,12 +774,18 @@ async function renderSettings() {
         <button class="btn" data-action="exportAll">⤓ Upload-Paket ${year} (alle)</button>
       </div>
 
-      <h3>Backup</h3>
-      <p>Alle Daten liegen nur auf diesem Gerät im Browser-Speicher. Erstelle regelmässig ein Backup, bevor du Browserdaten löschst oder das Gerät wechselst.</p>
+      <h3>Abgleich zwischen Geräten (iCloud Drive)</h3>
+      <p>Die App speichert alles nur auf diesem Gerät. Für Handy und Computer dient eine <strong>Sync-Datei</strong> in iCloud Drive (oder einem anderen Ordner der Dateien-App) als gemeinsamer Speicher. Beim Einlesen werden die Daten zusammengeführt: Neueres gewinnt, Löschungen werden übernommen, nichts wird doppelt angelegt.</p>
+      <ol class="steps">
+        <li><strong>Sync-Datei speichern</strong> → im Teilen-Menü «In Dateien sichern» → iCloud Drive → vorhandene Datei ersetzen.</li>
+        <li>Auf dem anderen Gerät <strong>Sync-Datei einlesen</strong> und dieselbe Datei auswählen.</li>
+        <li>Dort weiterarbeiten und am Schluss wieder <strong>Sync-Datei speichern</strong>.</li>
+      </ol>
       <div class="row">
-        <button class="btn" data-action="backup">⤓ Backup erstellen (alle Jahre)</button>
-        <button class="btn" data-action="restore">⤒ Backup wiederherstellen</button>
+        <button class="btn primary" data-action="syncSave">⇪ Sync-Datei speichern</button>
+        <button class="btn" data-action="syncLoad">⤒ Sync-Datei einlesen</button>
       </div>
+      <p class="muted">${sync ? `Letzter Abgleich: ${new Date(sync.last).toLocaleString('de-CH')}${sync.n ? ` · ${sync.n} Änderung(en) seither` : ''}` : 'Noch kein Abgleich durchgeführt.'} Die Sync-Datei ist zugleich dein Backup.</p>
       <p class="muted">${esc(storage)}${persisted ? ' · Speicher ist dauerhaft geschützt' : ''}</p>
       ${!persisted && navigator.storage && navigator.storage.persist ? '<button class="btn" data-action="persist">Speicher dauerhaft schützen</button>' : ''}
 
@@ -714,6 +809,7 @@ async function renderSettings() {
       const y = Number(btn.dataset.year);
       const docs = await db.getAllBy('docs', 'year', y);
       if (!(await confirmDlg(`Steuerjahr ${y} löschen?`, `Alle Ordner und ${docs.length} Dokument(e) dieses Jahres werden unwiderruflich gelöscht.`))) return;
+      await markDeleted(docs.map((d) => d.id));
       for (const d of docs) await db.del('docs', d.id);
       for (const f of await db.getAllBy('folders', 'year', y)) await db.del('folders', f.id);
       await db.del('years', y);
@@ -724,13 +820,13 @@ async function renderSettings() {
       toast(n ? `${n} Standardordner ergänzt.` : 'Alle Standardordner sind vorhanden.');
     } else if (a === 'exportOpen') await exportYearZip(year, true);
     else if (a === 'exportAll') await exportYearZip(year, false);
-    else if (a === 'backup') await createBackup();
-    else if (a === 'restore') {
+    else if (a === 'syncSave') await saveSyncFile(true);
+    else if (a === 'syncLoad') {
       const input = $('#zipInput');
       input.value = '';
       input.onchange = async () => {
         if (!input.files[0]) return;
-        try { await restoreBackup(input.files[0]); render(); } catch (err) { toast('Fehler: ' + err.message, 5000); }
+        try { await mergeSyncFile(input.files[0]); render(); } catch (err) { toast('Fehler: ' + err.message, 5000); }
       };
       input.click();
     } else if (a === 'persist') {
@@ -744,7 +840,7 @@ async function renderSettings() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 async function render() {
   revokeUrls();
   $('#headerRight').onclick = null;

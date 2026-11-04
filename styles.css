@@ -108,3 +108,8 @@ dialog::backdrop { background: rgba(0, 0, 0, .45); }
 .dlg-actions { display: flex; gap: 10px; justify-content: flex-end; }
 .dlg-actions.column { flex-direction: column; }
 .dlg-actions.column .btn { width: 100%; }
+
+.syncline { flex-basis: 100%; font-size: .85rem; color: var(--muted); }
+.syncline.pending { color: var(--primary); font-weight: 600; }
+ol.steps { margin: 0 0 10px; padding-left: 20px; color: var(--muted); }
+ol.steps li { margin: 4px 0; }
