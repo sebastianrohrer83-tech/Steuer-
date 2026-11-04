@@ -267,7 +267,17 @@ async function exportYearZip(year, onlyNotUploaded) {
   } finally { busy(false); }
 }
 
-const SYNC_FILENAME = 'Steuerordner_Sync.zip';
+const syncFileName = (name) => (name ? `Steuerordner_Sync_${slug(name)}.zip` : 'Steuerordner_Sync.zip');
+
+// Name der Person an diesem Gerät (Haushalt): wird bei neuen Dokumenten gespeichert und im Dateinamen verwendet.
+async function ensureUserName() {
+  let n = await getSetting('userName', '');
+  if (!n) {
+    n = await promptDlg('Dein Name', 'Damit der Haushalt sieht, wer etwas abgelegt hat (z. B. Anna)', '', 'Speichern');
+    if (n) await setSetting('userName', n);
+  }
+  return n || '';
+}
 
 async function buildSyncZip() {
   const zip = new ZipWriter();
@@ -297,21 +307,35 @@ async function buildSyncZip() {
 // Sync-Datei speichern: auf dem Handy über das Teilen-Menü («In Dateien sichern» → iCloud Drive),
 // am Computer als Download in den iCloud-Drive-Ordner.
 async function saveSyncFile(share) {
+  const user = await ensureUserName();
+  const fname = syncFileName(user);
   busy(true, 'Sync-Datei wird erstellt …');
   try {
     const blob = await buildSyncZip();
-    if (share) await shareOrDownload(blob, SYNC_FILENAME, 'Steuerordner Sync-Datei'); else download(blob, SYNC_FILENAME);
+    if (share) await shareOrDownload(blob, fname, 'Steuerordner Sync-Datei'); else download(blob, fname);
     await setSetting('lastSync', Date.now());
-    toast('Sync-Datei erstellt. In iCloud Drive ablegen (vorhandene Datei ersetzen).');
+    toast(`Datei «${fname}» erstellt. Im geteilten Ordner ablegen und die alte Datei ersetzen.`, 4500);
   } finally { busy(false); }
 }
 
 // Sync-Datei einlesen und mit dem lokalen Bestand zusammenführen:
 // - Dokumente: gleiche ID → neuere Version gewinnt; Löschungen werden übernommen
 // - Ordner: Standardordner über ihre feste ID, eigene Ordner über Jahr + Name (keine Duplikate)
-async function mergeSyncFile(file) {
-  busy(true, 'Sync-Datei wird eingelesen …');
+async function mergeSyncFiles(files) {
+  busy(true, 'Dateien werden eingelesen …');
+  const total = { added: 0, updated: 0, deleted: 0, folders: 0 };
   try {
+    for (const file of files) {
+      const st = await mergeSyncFile(file);
+      for (const k of Object.keys(total)) total[k] += st[k];
+    }
+    await setSetting('lastSync', Date.now());
+    toast(`Abgleich fertig (${files.length} Datei${files.length === 1 ? '' : 'en'}): ${total.added} neu, ${total.updated} aktualisiert, ${total.deleted} gelöscht${total.folders ? `, ${total.folders} Ordner` : ''}.`, 5000);
+  } finally { busy(false); }
+}
+
+async function mergeSyncFile(file) {
+  {
     const entries = await readZip(await file.arrayBuffer());
     const mf = entries.find((e) => e.name === 'manifest.json');
     if (!mf) throw new Error('Keine Steuerordner-Sync-Datei (manifest.json fehlt).');
@@ -368,9 +392,8 @@ async function mergeSyncFile(file) {
       if (!localTomb[id] || localTomb[id] < delAt) localTomb[id] = delAt;
     }
     await setSetting('tombstones', localTomb);
-    await setSetting('lastSync', Date.now());
-    toast(`Abgleich fertig: ${stats.added} neu, ${stats.updated} aktualisiert, ${stats.deleted} gelöscht${stats.folders ? `, ${stats.folders} Ordner` : ''}.`, 4500);
-  } finally { busy(false); }
+    return stats;
+  }
 }
 
 async function changesSinceSync() {
@@ -412,15 +435,16 @@ async function collectPhotoPages(files) {
 
 async function addDocuments(folder, year, pages, pdfs) {
   const created = [];
+  const author = await getSetting('userName', '');
   busy(true, 'Wird abgelegt …');
   try {
     if (pages && pages.length) {
-      const doc = { id: uid(), folderId: folder.id, year, title: `Beleg vom ${fmtDate(Date.now())}`, kind: 'images', pages, note: '', uploaded: false, createdAt: Date.now(), updatedAt: Date.now() };
+      const doc = { id: uid(), folderId: folder.id, year, title: `Beleg vom ${fmtDate(Date.now())}`, kind: 'images', pages, note: '', author, uploaded: false, createdAt: Date.now(), updatedAt: Date.now() };
       await db.put('docs', doc);
       created.push(doc);
     }
     for (const f of pdfs) {
-      const doc = { id: uid(), folderId: folder.id, year, title: f.name.replace(/\.pdf$/i, ''), kind: 'pdf', file: new Blob([await f.arrayBuffer()], { type: 'application/pdf' }), note: '', uploaded: false, createdAt: Date.now(), updatedAt: Date.now() };
+      const doc = { id: uid(), folderId: folder.id, year, title: f.name.replace(/\.pdf$/i, ''), kind: 'pdf', file: new Blob([await f.arrayBuffer()], { type: 'application/pdf' }), note: '', author, uploaded: false, createdAt: Date.now(), updatedAt: Date.now() };
       await db.put('docs', doc);
       created.push(doc);
     }
@@ -561,7 +585,7 @@ async function renderFolder(folderId) {
         <div class="thumb">${d.kind === 'pdf' ? '<span class="pdfbadge">PDF</span>' : (d.pages[0] ? `<img src="${blobUrl(d.pages[0].blob)}" alt="">` : '')}</div>
         <div class="docmeta">
           <div class="doctitle">${esc(d.title)}</div>
-          <div class="docsub">${fmtDate(d.createdAt)} · ${d.kind === 'pdf' ? 'PDF' : d.pages.length + ' Seite' + (d.pages.length === 1 ? '' : 'n')} · ${fmtBytes(docSize(d))}${d.note ? ' · ' + esc(d.note) : ''}</div>
+          <div class="docsub">${fmtDate(d.createdAt)} · ${d.kind === 'pdf' ? 'PDF' : d.pages.length + ' Seite' + (d.pages.length === 1 ? '' : 'n')} · ${fmtBytes(docSize(d))}${d.author ? ' · von ' + esc(d.author) : ''}${d.note ? ' · ' + esc(d.note) : ''}</div>
         </div>
         <div class="status ${d.uploaded ? 'ok' : ''}" title="${d.uploaded ? 'hochgeladen' : 'noch nicht hochgeladen'}">${d.uploaded ? '✓' : '○'}</div>
       </a></li>`).join('')}</ul>`
@@ -735,6 +759,7 @@ async function renderSettings() {
   const years = (await db.getAll('years')).map((y) => y.year).sort((a, b) => b - a);
   const scanMode = await getScanMode();
   const autoCap = await getSetting('autoCapture', true);
+  const userName = await getSetting('userName', '');
   let storage = '';
   if (navigator.storage && navigator.storage.estimate) {
     const e = await navigator.storage.estimate();
@@ -769,16 +794,19 @@ async function renderSettings() {
         <button class="btn" data-action="exportAll">⤓ Upload-Paket ${year} (alle)</button>
       </div>
 
-      <h3>Abgleich zwischen Geräten (iCloud Drive)</h3>
-      <p>Die App speichert alles nur auf diesem Gerät. Für Handy und Computer dient eine <strong>Sync-Datei</strong> in iCloud Drive (oder einem anderen Ordner der Dateien-App) als gemeinsamer Speicher. Beim Einlesen werden die Daten zusammengeführt: Neueres gewinnt, Löschungen werden übernommen, nichts wird doppelt angelegt.</p>
+      <h3>Gemeinsam im Haushalt (geteilter iCloud-Ordner)</h3>
+      <p>Alle im Haushalt nutzen einen gemeinsamen Ordner in iCloud Drive. <strong>Jede Person speichert ihre eigene Datei</strong> dort hinein, so überschreibt niemand die Arbeit der anderen. Beim Einlesen werden alle Dateien des Ordners zusammengeführt: Neueres gewinnt, Löschungen werden übernommen, nichts wird doppelt angelegt.</p>
+      <label class="setrow">Dein Name
+        <input type="text" id="userName" value="${esc(userName)}" maxlength="30" placeholder="z. B. Anna">
+      </label>
       <ol class="steps">
-        <li><strong>Sync-Datei speichern</strong> → im Teilen-Menü «In Dateien sichern» → iCloud Drive → vorhandene Datei ersetzen.</li>
-        <li>Auf dem anderen Gerät <strong>Sync-Datei einlesen</strong> und dieselbe Datei auswählen.</li>
-        <li>Dort weiterarbeiten und am Schluss wieder <strong>Sync-Datei speichern</strong>.</li>
+        <li><strong>Einmalig:</strong> In der Dateien-App einen Ordner «Steuer» in iCloud Drive anlegen, gedrückt halten, «Teilen» → «Zusammenarbeiten» → Personen aus dem Haushalt einladen.</li>
+        <li><strong>Eigene Datei speichern</strong> → «In Dateien sichern» → Ordner «Steuer» → vorhandene Datei ersetzen.</li>
+        <li><strong>Dateien einlesen</strong> → im Ordner «Steuer» <em>alle</em> Dateien markieren und öffnen.</li>
       </ol>
       <div class="row">
-        <button class="btn primary" data-action="syncSave">⇪ Sync-Datei speichern</button>
-        <button class="btn" data-action="syncLoad">⤒ Sync-Datei einlesen</button>
+        <button class="btn primary" data-action="syncLoad">⤒ Dateien einlesen</button>
+        <button class="btn" data-action="syncSave">⇪ Meine Datei speichern</button>
       </div>
       <p class="muted">${sync ? `Letzter Abgleich: ${new Date(sync.last).toLocaleString('de-CH')}${sync.n ? ` · ${sync.n} Änderung(en) seither` : ''}` : 'Noch kein Abgleich durchgeführt.'} Die Sync-Datei ist zugleich dein Backup.</p>
       <p class="muted">${esc(storage)}${persisted ? ' · Speicher ist dauerhaft geschützt' : ''}</p>
@@ -791,6 +819,7 @@ async function renderSettings() {
 
   $('#scanMode').onchange = (e) => setSetting('scanMode', e.target.value);
   $('#autoCap').onchange = (e) => setSetting('autoCapture', e.target.checked);
+  $('#userName').onchange = (e) => setSetting('userName', e.target.value.trim());
   view().onclick = async (e) => {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
@@ -822,7 +851,7 @@ async function renderSettings() {
       input.value = '';
       input.onchange = async () => {
         if (!input.files[0]) return;
-        try { await mergeSyncFile(input.files[0]); render(); } catch (err) { toast('Fehler: ' + err.message, 5000); }
+        try { await mergeSyncFiles([...input.files]); render(); } catch (err) { toast('Fehler: ' + err.message, 5000); }
       };
       input.click();
     } else if (a === 'persist') {
@@ -836,7 +865,7 @@ async function renderSettings() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 async function render() {
   revokeUrls();
   $('#headerRight').onclick = null;

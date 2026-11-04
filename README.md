@@ -68,27 +68,26 @@ python3 -m http.server 8080
 Dann `http://localhost:8080` öffnen. Ein `file://`-Aufruf reicht nicht, weil der Browser
 für Kamera, Service Worker und Module eine echte Web-Adresse braucht.
 
-## Abgleich zwischen Handy und Computer (iCloud Drive)
+## Gemeinsam im Haushalt (geteilter iCloud-Ordner)
 
-Die App hat keinen Server. Als gemeinsamer Speicher dient eine **Sync-Datei** (`Steuerordner_Sync.zip`)
-in iCloud Drive oder einem anderen Ordner der Dateien-App:
+Die App hat keinen Server. Alle im Haushalt nutzen einen gemeinsamen Ordner in iCloud Drive:
 
-1. **Einstellungen → Sync-Datei speichern.** Auf dem iPhone öffnet sich das Teilen-Menü:
-   «In Dateien sichern» → iCloud Drive → vorhandene Datei ersetzen. Am Computer landet die Datei
-   als Download, von dort in den iCloud-Drive-Ordner verschieben.
-2. Auf dem anderen Gerät **Einstellungen → Sync-Datei einlesen** und dieselbe Datei auswählen.
-3. Dort weiterarbeiten und am Schluss wieder **Sync-Datei speichern**.
+1. **Einmalig:** In der Dateien-App einen Ordner «Steuer» in iCloud Drive anlegen, gedrückt halten, «Teilen» →
+   «Zusammenarbeiten» → Personen aus dem Haushalt einladen.
+2. In der App unter **Einstellungen** den eigenen **Namen** eintragen.
+3. **Meine Datei speichern:** Die App erzeugt `Steuerordner_Sync_<Name>.zip`. Im Teilen-Menü «In Dateien sichern» →
+   Ordner «Steuer», eine ältere Datei derselben Person ersetzen.
+4. **Dateien einlesen:** Im Ordner «Steuer» *alle* Dateien markieren und öffnen. Die App führt sie zusammen.
 
-Beim Einlesen werden die Daten zusammengeführt, nicht überschrieben:
+Jede Person überschreibt nur die eigene Datei, deshalb gehen keine Änderungen verloren, auch wenn mehrere gleichzeitig
+arbeiten. Beim Zusammenführen gilt:
 
-- Dokumente mit gleicher ID: die neuere Version gewinnt (auch Titel, Notiz, Status «hochgeladen»).
-- Auf einem Gerät gelöschte Dokumente werden auch auf dem anderen entfernt.
-- Standardordner sind auf allen Geräten identisch, eigene Ordner werden über Jahr und Name erkannt.
-  Es entstehen keine Duplikate, auch wenn die Datei mehrfach eingelesen wird.
+- Dokumente mit gleicher ID: die neuere Version gewinnt (Titel, Notiz, Status «hochgeladen»).
+- Gelöschte Dokumente werden auf allen Geräten entfernt und kommen auch aus alten Dateien nicht zurück.
+- Standardordner sind auf allen Geräten identisch, eigene Ordner werden über Jahr und Name erkannt. Es entstehen keine Duplikate.
+- In der Dokumentliste steht, **wer** ein Dokument abgelegt hat.
 
-Die Startseite zeigt, wann der letzte Abgleich war und wie viele Änderungen seither anstehen.
-Die Sync-Datei ist zugleich das Backup. «Speicher dauerhaft schützen» in den Einstellungen bittet
-den Browser, die lokalen Daten nicht bei Platzmangel zu löschen.
+Die Startseite zeigt, wann zuletzt abgeglichen wurde und wie viele Änderungen seither anstehen. Die Dateien sind zugleich das Backup.
 
 ## Technik
 
@@ -105,7 +104,7 @@ Reines HTML/CSS/JavaScript ohne Build-Schritt und ohne Abhängigkeiten.
 | `zip.js` | ZIP schreiben (Store) und lesen (Store/Deflate) |
 | `sw.js`, `manifest.webmanifest` | Offline-Betrieb und Installation als App |
 
-Bei Änderungen an den Dateien die Cache-Version in `sw.js` (`steuerordner-v3`) hochzählen,
+Bei Änderungen an den Dateien die Cache-Version in `sw.js` (`steuerordner-v5`) hochzählen,
 damit installierte Apps die neue Version laden.
 
 ## Scan-Qualität
