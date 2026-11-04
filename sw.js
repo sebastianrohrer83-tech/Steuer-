@@ -1,5 +1,5 @@
-const CACHE = 'steuerordner-v2';
-const ASSETS = ['./', './index.html', './styles.css', './app.js', './db.js', './pdfwriter.js', './zip.js', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png'];
+const CACHE = 'steuerordner-v3';
+const ASSETS = ['./', './index.html', './styles.css', './app.js', './db.js', './pdfwriter.js', './zip.js', './scan.js', './scanner.js', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));

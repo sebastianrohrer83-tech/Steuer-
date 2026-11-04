@@ -32,8 +32,11 @@ Jeder Ordner zeigt beim Öffnen einen Hinweistext «Was gehört hier hinein?», 
 ## Nutzung
 
 1. **Steuerjahr wählen** (oben links). Ein neues Jahr legt automatisch alle Standardordner an.
-2. **Ordner öffnen → Scannen.** Die Kamera öffnet sich, das Foto wird zugeschnitten auf max. 2200 px,
-   im Dokument-Modus in Schwarzweiss mit erhöhtem Kontrast gespeichert (abschaltbar in den Einstellungen).
+2. **Ordner öffnen → Scannen.** Die Kamera erkennt das Blatt live und zeigt einen grünen Rahmen.
+   Sobald das Blatt ruhig liegt, löst die App automatisch aus (abschaltbar, dann per Auslöser).
+   Danach prüfst du die erkannten Ecken, ziehst sie bei Bedarf mit dem Finger zurecht und tippst auf «Übernehmen».
+   Die App schneidet das Blatt zu, richtet es gerade (Perspektive) und entfernt Schatten.
+   Mehrere Seiten nacheinander aufnehmen, dann «Fertig». Bei «Datei / Foto» läuft dieselbe Erkennung auf vorhandene Fotos.
 3. **Titel und Notiz** vergeben, bei Bedarf weitere Seiten anhängen, Seiten drehen oder umsortieren.
 4. **Für die Online-Steuererklärung:**
    - Einzelner Beleg: «PDF teilen / speichern» (Handy) oder «PDF» (Download).
@@ -94,11 +97,22 @@ Reines HTML/CSS/JavaScript ohne Build-Schritt und ohne Abhängigkeiten.
 | Datei | Zweck |
 |---|---|
 | `index.html`, `styles.css` | Oberfläche (mobile first, Hell/Dunkel) |
-| `app.js` | Ordner, Dokumente, Scan-Verarbeitung, Export, Backup |
+| `app.js` | Ordner, Dokumente, Export, Abgleich |
+| `scan.js` | Blatterkennung, Entzerrung, Schattenentfernung (ohne Bibliotheken) |
+| `scanner.js` | Live-Scanner, automatische Auslösung, Ecken-Prüfbild |
 | `db.js` | IndexedDB-Zugriff |
 | `pdfwriter.js` | Eigener PDF-Writer (JPEG-Seiten auf A4) |
 | `zip.js` | ZIP schreiben (Store) und lesen (Store/Deflate) |
 | `sw.js`, `manifest.webmanifest` | Offline-Betrieb und Installation als App |
 
-Bei Änderungen an den Dateien die Cache-Version in `sw.js` (`steuerordner-v2`) hochzählen,
+Bei Änderungen an den Dateien die Cache-Version in `sw.js` (`steuerordner-v3`) hochzählen,
 damit installierte Apps die neue Version laden.
+
+## Scan-Qualität
+
+- Aufbereitung wählbar unter Einstellungen: **Dokument** (Schwarzweiss, Schatten entfernt), **Farbe** (Schatten entfernt)
+  oder **Original** (nur zuschneiden und begradigen). Im Prüfbild lässt sich der Modus pro Seite wechseln.
+- Die Blatterkennung braucht einen Untergrund, der sich vom Papier abhebt (z. B. dunkler Tisch). Bei weissem Blatt auf
+  weissem Tisch oder sehr starkem Schatten findet sie den Rand nicht sicher, dann die Ecken von Hand ziehen.
+- Ohne Kamerazugriff (z. B. Berechtigung verweigert) nimmt die App stattdessen ein Foto über die Kamera-App des Geräts auf
+  und führt es durch dieselbe Erkennung.

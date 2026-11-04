@@ -1,6 +1,7 @@
 import { db } from './db.js';
 import { makePdf } from './pdfwriter.js';
 import { ZipWriter, readZip } from './zip.js';
+import { scanPages, reviewFiles } from './scanner.js';
 
 // ---------------------------------------------------------------------------
 // Standardordner: orientiert an den Beilagen der Steuererklärung AR (natürliche Personen)
@@ -182,47 +183,6 @@ function loadImage(file) {
   });
 }
 const toJpeg = (canvas, q = 0.82) => new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('JPEG fehlgeschlagen'))), 'image/jpeg', q));
-
-function enhanceCanvas(ctx, w, h) {
-  const d = ctx.getImageData(0, 0, w, h);
-  const p = d.data;
-  const hist = new Uint32Array(256);
-  for (let i = 0; i < p.length; i += 4) {
-    const l = ((p[i] * 299 + p[i + 1] * 587 + p[i + 2] * 114) / 1000) | 0;
-    p[i] = l;
-    hist[l]++;
-  }
-  const total = w * h;
-  let lo = 0, hi = 255, acc = 0;
-  for (let i = 0; i < 256; i++) { acc += hist[i]; if (acc > total * 0.01) { lo = i; break; } }
-  acc = 0;
-  for (let i = 255; i >= 0; i--) { acc += hist[i]; if (acc > total * 0.03) { hi = i; break; } }
-  const range = Math.max(32, hi - lo);
-  for (let i = 0; i < p.length; i += 4) {
-    let v = ((p[i] - lo) * 255) / range;
-    v = v < 0 ? 0 : v > 255 ? 255 : v;
-    v = 255 * Math.pow(v / 255, 1.2);
-    p[i] = p[i + 1] = p[i + 2] = v;
-  }
-  ctx.putImageData(d, 0, 0);
-}
-
-async function processImage(file, enhance) {
-  const img = await loadImage(file);
-  const MAX = 2200;
-  let w = img.naturalWidth, h = img.naturalHeight;
-  const s = Math.min(1, MAX / Math.max(w, h));
-  w = Math.max(1, Math.round(w * s));
-  h = Math.max(1, Math.round(h * s));
-  const c = document.createElement('canvas');
-  c.width = w; c.height = h;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, w, h);
-  ctx.drawImage(img, 0, 0, w, h);
-  if (enhance) enhanceCanvas(ctx, w, h);
-  return { blob: await toJpeg(c), w, h };
-}
 
 async function rotatePage(page) {
   const img = await loadImage(page.blob);
@@ -425,19 +385,36 @@ async function changesSinceSync() {
 // ---------------------------------------------------------------------------
 // Dokumente anlegen
 // ---------------------------------------------------------------------------
-async function addFiles(files, folder, year) {
-  const list = [...files];
-  const imgs = list.filter((f) => f.type.startsWith('image/'));
-  const pdfs = list.filter((f) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
-  const others = list.length - imgs.length - pdfs.length;
-  if (others) toast('Nur Bilder und PDF-Dateien werden unterstützt.');
-  const enhance = await getSetting('enhance', true);
+async function getScanMode() {
+  const m = await getSetting('scanMode');
+  if (m) return m;
+  return (await getSetting('enhance', true)) ? 'doc' : 'orig';
+}
+
+const isImage = (f) => f.type.startsWith('image/');
+const isPdf = (f) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+
+// Seiten per Live-Scanner aufnehmen. Ohne Kamerazugriff wird die Foto-Aufnahme des Geräts verwendet.
+// Ergebnis: Seitenliste oder null (abgebrochen).
+async function collectCameraPages() {
+  const mode = await getScanMode();
+  const res = await scanPages({ mode, auto: await getSetting('autoCapture', true), onAuto: (v) => setSetting('autoCapture', v) });
+  if (res !== 'unavailable') return res;
+  toast('Kamera nicht verfügbar. Das Foto wird über die Kamera-App aufgenommen.', 3500);
+  const files = (await pickFiles({ camera: true })).filter(isImage);
+  return files.length ? reviewFiles(files, { mode }) : null;
+}
+
+async function collectPhotoPages(files) {
+  const imgs = files.filter(isImage);
+  return imgs.length ? reviewFiles(imgs, { mode: await getScanMode() }) : null;
+}
+
+async function addDocuments(folder, year, pages, pdfs) {
   const created = [];
-  busy(true, 'Scan wird verarbeitet …');
+  busy(true, 'Wird abgelegt …');
   try {
-    if (imgs.length) {
-      const pages = [];
-      for (const f of imgs) pages.push(await processImage(f, enhance));
+    if (pages && pages.length) {
       const doc = { id: uid(), folderId: folder.id, year, title: `Beleg vom ${fmtDate(Date.now())}`, kind: 'images', pages, note: '', uploaded: false, createdAt: Date.now(), updatedAt: Date.now() };
       await db.put('docs', doc);
       created.push(doc);
@@ -469,9 +446,19 @@ async function chooseFolder(year, title = 'In welchen Ordner?') {
 }
 
 async function scanInto(folder, year, camera) {
-  const files = await pickFiles({ camera });
-  if (!files.length) return;
-  const created = await addFiles(files, folder, year);
+  let pages = null, pdfs = [];
+  if (camera) {
+    pages = await collectCameraPages();
+    if (!pages) return;
+  } else {
+    const files = await pickFiles({ camera: false });
+    if (!files.length) return;
+    pdfs = files.filter(isPdf);
+    if (files.length - files.filter(isImage).length - pdfs.length) toast('Nur Bilder und PDF-Dateien werden unterstützt.');
+    pages = await collectPhotoPages(files);
+    if (!pages && !pdfs.length) return;
+  }
+  const created = await addDocuments(folder, year, pages, pdfs);
   if (created.length === 1) location.hash = `#/d/${created[0].id}?new=1`;
   else if (created.length) { toast(`${created.length} Dokumente abgelegt.`); location.hash = `#/f/${folder.id}`; }
 }
@@ -716,11 +703,11 @@ async function renderDoc(docId, params) {
       doc.updatedAt = Date.now();
       await db.put('docs', doc); render();
     } else if (a === 'addPageCam' || a === 'addPagePick') {
-      const files = (await pickFiles({ camera: a === 'addPageCam' })).filter((f) => f.type.startsWith('image/'));
-      if (!files.length) return;
-      const enhance = await getSetting('enhance', true);
-      busy(true, 'Seite wird verarbeitet …');
-      try { for (const f of files) doc.pages.push(await processImage(f, enhance)); doc.updatedAt = Date.now(); await db.put('docs', doc); } finally { busy(false); }
+      const pages = a === 'addPageCam' ? await collectCameraPages() : await collectPhotoPages(await pickFiles({ camera: false }));
+      if (!pages || !pages.length) return;
+      doc.pages.push(...pages);
+      doc.updatedAt = Date.now();
+      await db.put('docs', doc);
       render();
     } else if (a === 'docMenu') {
       const r = await dialog(`<h2>${esc(doc.title)}</h2>
@@ -746,7 +733,8 @@ async function renderDoc(docId, params) {
 async function renderSettings() {
   const year = await currentYear();
   const years = (await db.getAll('years')).map((y) => y.year).sort((a, b) => b - a);
-  const enhance = await getSetting('enhance', true);
+  const scanMode = await getScanMode();
+  const autoCap = await getSetting('autoCapture', true);
   let storage = '';
   if (navigator.storage && navigator.storage.estimate) {
     const e = await navigator.storage.estimate();
@@ -758,7 +746,14 @@ async function renderSettings() {
   view().innerHTML = `
     <section class="settings">
       <h3>Scan</h3>
-      <label class="check"><input type="checkbox" id="enhance" ${enhance ? 'checked' : ''}> Dokument-Modus (Schwarzweiss, mehr Kontrast, kleinere Dateien)</label>
+      <label class="setrow">Bildaufbereitung
+        <select id="scanMode">
+          <option value="doc" ${scanMode === 'doc' ? 'selected' : ''}>Dokument: Schwarzweiss, Schatten entfernt</option>
+          <option value="color" ${scanMode === 'color' ? 'selected' : ''}>Farbe: Schatten entfernt</option>
+          <option value="orig" ${scanMode === 'orig' ? 'selected' : ''}>Original: nur zuschneiden und begradigen</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" id="autoCap" ${autoCap ? 'checked' : ''}> Automatisch auslösen, sobald das Blatt erkannt ist</label>
 
       <h3>Steuerjahre</h3>
       <ul class="plain">${years.map((y) => `<li><span>Steuerjahr ${y}${y === year ? ' (aktiv)' : ''}</span><button class="iconbtn danger" data-action="delYear" data-year="${y}" title="Steuerjahr löschen">✕</button></li>`).join('')}</ul>
@@ -794,7 +789,8 @@ async function renderSettings() {
       <p class="muted">Version ${APP_VERSION}</p>
     </section>`;
 
-  $('#enhance').onchange = (e) => setSetting('enhance', e.target.checked);
+  $('#scanMode').onchange = (e) => setSetting('scanMode', e.target.value);
+  $('#autoCap').onchange = (e) => setSetting('autoCapture', e.target.checked);
   view().onclick = async (e) => {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
@@ -840,7 +836,7 @@ async function renderSettings() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 async function render() {
   revokeUrls();
   $('#headerRight').onclick = null;
