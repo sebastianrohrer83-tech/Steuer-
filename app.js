@@ -23,6 +23,10 @@ export const DEFAULT_FOLDERS = [
 const DEFAULT_BY_KEY = Object.fromEntries(DEFAULT_FOLDERS.map((f) => [f.key, f]));
 const shortOf = (f) => (DEFAULT_BY_KEY[f.builtin] && DEFAULT_BY_KEY[f.builtin].short) || (f.hint ? f.hint.slice(0, 48) : '');
 const examplesOf = (f) => (DEFAULT_BY_KEY[f.builtin] && DEFAULT_BY_KEY[f.builtin].examples) || [];
+// Automatische Namen: «Krankenkasse 2025 – Anna Muster». Der Teil vor dem Jahr kommt vom Checklistenpunkt oder vom Ordner.
+const FOLDER_LABEL = { einkommen: 'Lohn', wertschriften: 'Bank', berufsauslagen: 'Berufsauslagen', vorsorge: 'Vorsorge', krankenkasse: 'Krankenkasse', liegenschaft: 'Liegenschaft', schulden: 'Schulden', familie: 'Familie', spenden: 'Spenden', steuern: 'Steuern', sonstiges: 'Beleg' };
+const baseLabel = (folder, item) => (item ? item.short : (folder && (FOLDER_LABEL[folder.builtin] || folder.name)) || 'Beleg');
+const autoTitle = (base, year, person) => `${base} ${year}${person ? ' – ' + person : ''}`;
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 // Persönliche Checkliste: allgemeine Orientierung (typische Unterlagen in der Schweiz), keine Steuerberatung.
@@ -35,6 +39,8 @@ const PROFILE_QUESTIONS = [
   ['saeule3a', 'Ich zahle in die Säule 3a ein', 'Private Vorsorge bei einer Bank oder Versicherung.'],
   ['eigentum', 'Ich besitze Wohneigentum', 'Haus oder Wohnung, meist mit Hypothek.'],
   ['kinder', 'Ich habe Kinder', 'Betreuung, Ausbildung oder Unterstützung.'],
+  ['unterhalt_zahle', 'Ich zahle Unterhalt', 'Alimente für Kinder oder an die geschiedene oder getrennte Person.'],
+  ['unterhalt_erhalte', 'Ich erhalte Unterhalt', 'Alimente für dich oder für die Kinder.'],
 ];
 const CHECKLIST = [
   { key: 'lohnausweis', folder: 'einkommen', need: ['angestellt'], short: 'Lohnausweis', title: 'Lohnausweis', hint: 'Vom Arbeitgeber, meist im Januar. Bei mehreren Arbeitgebern je einer.', amount: 'Nettolohn (Ziffer 11 auf dem Lohnausweis)' },
@@ -51,10 +57,13 @@ const CHECKLIST = [
   { key: 'kk_praemien', folder: 'krankenkasse', need: [], short: 'Prämienübersicht', title: 'Prämienübersicht der Krankenkasse', hint: 'Die Krankenkasse schickt eine Jahresübersicht.', amount: 'Prämien im Jahr' },
   { key: 'kk_selbst', folder: 'krankenkasse', need: [], opt: true, short: 'Arztrechnungen', title: 'Arzt-, Zahnarzt- und Spitalrechnungen (selbst bezahlt)', hint: 'Nur was du selbst bezahlt hast.', amount: 'Selbst bezahlter Betrag' },
   { key: 'hypo', folder: 'liegenschaft', need: ['eigentum'], short: 'Hypothekarzins', title: 'Hypothekarzins-Bescheinigung', hint: 'Von der Bank, meist im Januar.', amount: 'Schuldzins und Hypothek per 31.12.' },
-  { key: 'unterhalt', folder: 'liegenschaft', need: ['eigentum'], opt: true, short: 'Unterhalt', title: 'Rechnungen für Unterhalt und Reparaturen', hint: 'Nur falls du am Haus oder an der Wohnung etwas machen liessest.', amount: 'Total Unterhalt' },
+  { key: 'unterhalt', folder: 'liegenschaft', need: ['eigentum'], opt: true, short: 'Unterhalt', title: 'Rechnungen für Unterhalt und Reparaturen', hint: 'Nur falls du am Haus oder an der Wohnung etwas machen liessest und die tatsächlichen Kosten statt der Pauschale geltend machst.', amount: 'Total Unterhalt' },
   { key: 'schuldzins', folder: 'schulden', need: [], opt: true, short: 'Schuldzinsen', title: 'Schuldzinsen (Kredit, Leasing, Kreditkarte)', hint: 'Nur falls du Schulden ausser der Hypothek hast.', amount: 'Zinsen im Jahr' },
   { key: 'kita', folder: 'familie', need: ['kinder'], opt: true, short: 'Kinderbetreuung', title: 'Kinderbetreuung (Kita, Tagesfamilie)', hint: 'Nur falls du Betreuung selbst bezahlt hast.', amount: 'Kosten im Jahr' },
   { key: 'ausbildung', folder: 'familie', need: ['kinder'], opt: true, short: 'Ausbildung Kinder', title: 'Ausbildungskosten der Kinder', hint: 'Nur falls du solche Kosten hattest.', amount: 'Kosten im Jahr' },
+  { key: 'unterhalt_urteil', folder: 'familie', need: ['unterhalt_zahle', 'unterhalt_erhalte'], short: 'Scheidungsurteil', title: 'Scheidungsurteil oder Unterhaltsvereinbarung', hint: 'Kopie der Seiten mit den Unterhaltsbeiträgen. Manche Kantone wollen sie beim ersten Mal, andere jedes Jahr: lies dazu die Wegleitung deines Kantons.', amount: '' },
+  { key: 'unterhalt_zahlung', folder: 'familie', need: ['unterhalt_zahle'], short: 'Unterhalt bezahlt', title: 'Zahlungsnachweise für bezahlten Unterhalt', hint: 'Belege über das, was du im Jahr wirklich bezahlt hast, mit Name und Adresse der empfangenden Person. Am besten lässt du dir die Zahlungen von ihr bestätigen.', amount: 'Total bezahlt im Jahr' },
+  { key: 'unterhalt_erhalt', folder: 'familie', need: ['unterhalt_erhalte'], short: 'Unterhalt erhalten', title: 'Übersicht über erhaltenen Unterhalt', hint: 'Was du im Jahr bekommen hast, für dich und für die Kinder getrennt, falls beides vorkommt.', amount: 'Total erhalten im Jahr' },
   { key: 'spenden', folder: 'spenden', need: [], opt: true, short: 'Spenden', title: 'Spendenbescheinigungen', hint: 'Nur falls du gespendet hast.', amount: 'Total Spenden' },
   { key: 'veranlagung', folder: 'steuern', need: [], opt: true, short: 'Veranlagung Vorjahr', title: 'Veranlagungsverfügung des Vorjahres', hint: 'Hilft beim Vergleich mit dem letzten Jahr.', amount: '' },
 ];
@@ -239,7 +248,8 @@ const folderKey = (id) => 'f:' + id; // Löschmarken für Ordner und Jahre: «f:
 async function ensureYear(year) {
   if (!(await db.get('years', year))) {
     const prev = (await db.getAll('years')).filter((y) => y.profile).sort((a, b) => b.year - a.year)[0];
-    await db.put('years', { year, createdAt: Date.now(), ...(prev ? { profile: prev.profile, profileAt: Date.now() } : {}) });
+    const prevP = (await db.getAll('years')).filter((y) => y.persons && y.persons.length).sort((a, b) => (b.personsAt || 0) - (a.personsAt || 0))[0];
+    await db.put('years', { year, createdAt: Date.now(), ...(prev ? { profile: prev.profile, profileAt: Date.now() } : {}), ...(prevP ? { persons: prevP.persons, personsAt: prevP.personsAt || Date.now() } : {}) });
     await clearTombstones(['y:' + year]);
     await createDefaultFolders(year);
   }
@@ -278,6 +288,48 @@ async function setCheck(year, key, st) {
   const y = await getYearRec(year);
   y.checks = { ...(y.checks || {}), [key]: { s: st, at: Date.now() } };
   await db.put('years', y);
+}
+// Personen im Haushalt: die Liste steht an jedem Jahres-Eintrag und wird wie die Angaben mit der Familie abgeglichen.
+async function getPersons(year) { const y = await db.get('years', year); return (y && y.persons) || []; }
+async function setPersons(list) {
+  const now = Date.now();
+  for (const y of await db.getAll('years')) { y.persons = list; y.personsAt = now; await db.put('years', y); }
+}
+function parseNames(text) {
+  const out = [];
+  for (const part of String(text || '').split(/[,;\n]/)) {
+    const n = part.replace(/\s+/g, ' ').trim().slice(0, 40);
+    if (n && !out.some((o) => o.toLowerCase() === n.toLowerCase())) out.push(n);
+  }
+  return out.slice(0, 12);
+}
+async function namesDlg(title, text, value) {
+  const r = await dialog(`<h2>${esc(title)}</h2><p class="muted small">${esc(text)}</p>
+    <label>Vor- und Nachname, mehrere mit Komma getrennt<input type="text" name="v" value="${esc(value)}" maxlength="200" placeholder="z. B. Anna Muster, Ben Muster" autocomplete="off"></label>
+    <div class="dlg-actions"><button type="button" data-value="cancel" class="btn">Später</button><button type="submit" class="btn primary">Speichern</button></div>`);
+  return r && typeof r === 'object' ? parseNames(r.v) : null;
+}
+// Beim ersten Scan einmalig fragen, für wen die Belege sind.
+async function maybeAskPersons(year) {
+  if ((await getPersons(year)).length || (await getSetting('personsAsked', false))) return;
+  await setSetting('personsAsked', true);
+  const names = await namesDlg('Für wen sammelst du Belege?', 'Die App nennt die Belege danach «Krankenkasse 2025 – Anna Muster» und ordnet sie der Person zu. Du kannst die Liste später in den Einstellungen ändern.', '');
+  if (names && names.length) await setPersons(names);
+}
+async function choosePerson(year) {
+  const persons = await getPersons(year);
+  if (persons.length < 2) return persons[0] || '';
+  const me = ((await getSetting('userName', '')) || '').toLowerCase();
+  const last = await getSetting('lastPerson', '');
+  const first = persons.find((p) => p === last) || persons.find((p) => me && p.toLowerCase().startsWith(me.split(' ')[0])) || persons[0];
+  const ordered = [first, ...persons.filter((p) => p !== first)];
+  const r = await dialog(`<h2>Wem gehört der Beleg?</h2>
+    <div class="dlg-actions column">
+      ${ordered.map((p, i) => `<button type="button" data-value="p:${esc(p)}" class="btn ${i === 0 ? 'primary' : ''}">${esc(p)}</button>`).join('')}
+      <button type="button" data-value="none" class="btn ghost">Nicht zuordnen</button>
+    </div>`);
+  if (r && r.startsWith('p:')) { const p = r.slice(2); await setSetting('lastPerson', p); return p; }
+  return '';
 }
 async function checklistState(year) {
   const y = await db.get('years', year);
@@ -364,7 +416,13 @@ async function shareOrDownload(blob, name, title) {
   download(blob, name);
   return true;
 }
-const pdfName = (year, folder, doc) => `${year}_${slug(folder.name)}_${slug(doc.title)}.pdf`;
+const pdfName = (year, folder, doc) => (doc.autoBase && doc.title.includes(String(year)) ? `${slug(doc.title)}.pdf` : `${year}_${slug(folder.name)}_${slug(doc.title)}.pdf`);
+function uniqueName(used, name) {
+  let n = name, i = 2;
+  while (used.has(n.toLowerCase())) n = name.replace(/\.pdf$/i, `_${i++}.pdf`);
+  used.add(n.toLowerCase());
+  return n;
+}
 
 // ---------------------------------------------------------------------------
 // Export / Backup
@@ -376,9 +434,10 @@ async function exportFolderZip(year, folder) {
   try {
     const zip = new ZipWriter();
     const base = `${year}_${slug(folder.name)}/`;
+    const used = new Set();
     for (const d of docs) {
       const pdf = await docToPdf(d);
-      zip.add(base + pdfName(year, folder, d), new Uint8Array(await pdf.arrayBuffer()));
+      zip.add(base + uniqueName(used, pdfName(year, folder, d)), new Uint8Array(await pdf.arrayBuffer()));
     }
     download(zip.finish(), `${year}_${slug(folder.name)}.zip`);
     toast('ZIP erstellt. Die PDFs können nun im Steuerportal hochgeladen werden.');
@@ -397,9 +456,10 @@ async function exportYearZip(year, onlyNotUploaded) {
       if (!docs.length) continue;
       lines.push(`${f.icon || ''} ${f.name}`.trim());
       const base = `${year}_${slug(f.name)}/`;
+      const used = new Set();
       for (const d of docs) {
         const pdf = await docToPdf(d);
-        const name = pdfName(year, f, d);
+        const name = uniqueName(used, pdfName(year, f, d));
         zip.add(base + name, new Uint8Array(await pdf.arrayBuffer()));
         lines.push(`  - ${name}${d.uploaded ? ' (bereits hochgeladen)' : ''}${d.note ? ' – ' + d.note : ''}`);
         n++;
@@ -827,6 +887,7 @@ async function mergeSyncFile(file) {
       if (!local) { await db.put('years', y); continue; }
       let changed = false;
       if ((y.profileAt || 0) > (local.profileAt || 0)) { local.profile = y.profile; local.profileAt = y.profileAt; changed = true; }
+      if ((y.personsAt || 0) > (local.personsAt || 0)) { local.persons = y.persons; local.personsAt = y.personsAt; changed = true; }
       for (const [k, c] of Object.entries(y.checks || {})) {
         const lc = local.checks && local.checks[k];
         if (!lc || c.at > lc.at) { local.checks = { ...(local.checks || {}), [k]: c }; changed = true; }
@@ -915,7 +976,7 @@ async function changesSinceSync() {
   const docs = await db.getAll('docs');
   const t = await getTombstones();
   const folders = await db.getAll('folders');
-  const years = (await db.getAll('years')).filter((y) => (y.profileAt || 0) > last || Object.values(y.checks || {}).some((c) => c.at > last)).length;
+  const years = (await db.getAll('years')).filter((y) => (y.profileAt || 0) > last || (y.personsAt || 0) > last || Object.values(y.checks || {}).some((c) => c.at > last)).length;
   const n = docs.filter((d) => (d.updatedAt || d.createdAt) > last).length + folders.filter((f) => (f.updatedAt || 0) > last).length + years + Object.values(t).filter((x) => x > last).length;
   return { last, n };
 }
@@ -967,18 +1028,28 @@ async function collectPhotoPages(files) {
   return imgs.length ? reviewFiles(imgs, { mode: await getScanMode() }) : null;
 }
 
-async function addDocuments(folder, year, pages, pdfs, item = null) {
+async function addDocuments(folder, year, pages, pdfs, item = null, person = '') {
   const created = [];
   const author = await getSetting('userName', '');
+  const base = baseLabel(folder, item);
+  // Gleicher Name im selben Ordner: «… (2)», «… (3)»
+  const taken = new Set((await docsOf(folder.id)).map((d) => d.title));
+  const nextTitle = () => {
+    const t0 = autoTitle(base, year, person);
+    let t = t0, n = 2;
+    while (taken.has(t)) t = `${t0} (${n++})`;
+    taken.add(t);
+    return t;
+  };
   busy(true, 'Wird abgelegt …');
   try {
     if (pages && pages.length) {
-      const doc = { id: uid(), folderId: folder.id, year, title: item ? item.short : `Beleg vom ${fmtDate(Date.now())}`, kind: 'images', pages, note: '', author, ...(item ? { item: item.key } : {}), uploaded: false, createdAt: Date.now(), updatedAt: Date.now() };
+      const doc = { id: uid(), folderId: folder.id, year, title: nextTitle(), autoBase: base, kind: 'images', pages, note: '', author, ...(person ? { person } : {}), ...(item ? { item: item.key } : {}), uploaded: false, createdAt: Date.now(), updatedAt: Date.now() };
       await db.put('docs', doc);
       created.push(doc);
     }
     for (const f of pdfs) {
-      const doc = { id: uid(), folderId: folder.id, year, title: f.name.replace(/\.pdf$/i, ''), kind: 'pdf', file: new Blob([await f.arrayBuffer()], { type: 'application/pdf' }), note: '', author, ...(item ? { item: item.key } : {}), uploaded: false, createdAt: Date.now(), updatedAt: Date.now() };
+      const doc = { id: uid(), folderId: folder.id, year, title: nextTitle(), autoBase: base, kind: 'pdf', file: new Blob([await f.arrayBuffer()], { type: 'application/pdf' }), note: f.name, author, ...(person ? { person } : {}), ...(item ? { item: item.key } : {}), uploaded: false, createdAt: Date.now(), updatedAt: Date.now() };
       await db.put('docs', doc);
       created.push(doc);
     }
@@ -1008,6 +1079,7 @@ async function chooseFolder(year, title = 'Wohin gehört der Beleg?') {
 }
 
 async function scanInto(folder, year, camera, item = null) {
+  await maybeAskPersons(year);
   let pages = null, pdfs = [];
   if (camera) {
     pages = await collectCameraPages();
@@ -1020,7 +1092,8 @@ async function scanInto(folder, year, camera, item = null) {
     pages = await collectPhotoPages(files);
     if (!pages && !pdfs.length) return;
   }
-  const created = await addDocuments(folder, year, pages, pdfs, item);
+  const person = await choosePerson(year);
+  const created = await addDocuments(folder, year, pages, pdfs, item, person);
   if (created.length === 1) location.hash = `#/d/${created[0].id}?new=1`;
   else if (created.length) { toast(`${created.length} Dokumente abgelegt.`); location.hash = `#/f/${folder.id}`; }
 }
@@ -1132,20 +1205,26 @@ async function renderHome() {
   };
 }
 
+let personFilter = { folder: '', p: null };
 async function renderFolder(folderId) {
   const folder = await db.get('folders', folderId);
   if (!folder) { location.hash = '#/'; return; }
   const year = folder.year;
-  const docs = await docsOf(folderId);
+  const allDocs = await docsOf(folderId);
+  const people = [...new Set(allDocs.map((d) => d.person).filter(Boolean))];
+  if (personFilter.folder !== folderId) personFilter = { folder: folderId, p: null };
+  if (personFilter.p && !people.includes(personFilter.p)) personFilter.p = null;
+  const docs = personFilter.p ? allDocs.filter((d) => d.person === personFilter.p) : allDocs;
   setHeader(folder.name, { back: '#/', right: `<button class="iconbtn" data-action="folderMenu" aria-label="Ordner-Menü">⋯</button>` });
   view().innerHTML = `
     ${folder.hint ? `<details class="hintbox" ${docs.length ? '' : 'open'}><summary>Was gehört in diesen Ordner?</summary><p>${esc(folder.hint)}</p></details>` : ''}
+    ${people.length > 1 ? `<div class="chips pfilter"><button type="button" class="chip ${personFilter.p ? '' : 'on'}" data-action="pf" data-p="">Alle</button>${people.map((p) => `<button type="button" class="chip ${personFilter.p === p ? 'on' : ''}" data-action="pf" data-p="${esc(p)}">${esc(p)}</button>`).join('')}</div>` : ''}
     ${docs.length ? `<ul class="doclist">${docs.map((d) => `
       <li><a href="#/d/${d.id}">
         <div class="thumb">${d.kind === 'pdf' ? '<span class="pdfbadge">PDF</span>' : (d.pages[0] ? `<img src="${blobUrl(d.pages[0].blob)}" alt="">` : '')}</div>
         <div class="docmeta">
           <div class="doctitle">${esc(d.title)}</div>
-          <div class="docsub">${fmtDate(d.createdAt)} · ${d.kind === 'pdf' ? 'PDF' : d.pages.length + ' Seite' + (d.pages.length === 1 ? '' : 'n')} · ${fmtBytes(docSize(d))}${d.amount != null ? ' · CHF ' + fmtChf(d.amount) : ''}${d.author ? ' · von ' + esc(d.author) : ''}${d.note ? ' · ' + esc(d.note) : ''}</div>
+          <div class="docsub">${fmtDate(d.createdAt)} · ${d.kind === 'pdf' ? 'PDF' : d.pages.length + ' Seite' + (d.pages.length === 1 ? '' : 'n')} · ${fmtBytes(docSize(d))}${d.amount != null ? ' · CHF ' + fmtChf(d.amount) : ''}${d.person ? ' · ' + esc(d.person) : d.author ? ' · von ' + esc(d.author) : ''}${d.note ? ' · ' + esc(d.note) : ''}</div>
         </div>
         <div class="status ${d.uploaded ? 'ok' : ''}" title="${d.uploaded ? 'hochgeladen' : 'noch nicht hochgeladen'}">${d.uploaded ? '✓' : '○'}</div>
       </a></li>`).join('')}</ul>`
@@ -1159,7 +1238,8 @@ async function renderFolder(folderId) {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const a = btn.dataset.action;
-    if (a === 'scan') await scanInto(folder, year, true);
+    if (a === 'pf') { personFilter = { folder: folderId, p: btn.dataset.p || null }; render(true); }
+    else if (a === 'scan') await scanInto(folder, year, true);
     else if (a === 'pick') await scanInto(folder, year, false);
     else if (a === 'folderMenu') {
       const r = await dialog(`<h2>${esc(folder.name)}</h2>
@@ -1207,11 +1287,13 @@ async function renderDoc(docId, params) {
   const year = doc.year;
   setHeader(folder ? folder.name : 'Dokument', { back: `#/f/${doc.folderId}`, right: `<button class="iconbtn" data-action="docMenu" aria-label="Dokument-Menü">⋯</button>` });
   const isImg = doc.kind !== 'pdf';
+  const persons = await getPersons(year);
   const docItem = doc.item ? CHECKLIST.find((c) => c.key === doc.item) : null;
   view().innerHTML = `
     ${params.get('new') ? '<div class="coach"><strong>Beleg gespeichert.</strong> Gib ihm jetzt einen Namen, damit du ihn später findest.</div>' : ''}
     <section class="docform">
       <label>Name des Belegs<input type="text" id="docTitle" value="${esc(doc.title)}" maxlength="100" placeholder="z. B. Lohnausweis"></label>
+      ${persons.length || doc.person ? `<label>Person<select id="docPerson"><option value="">Nicht zugeordnet</option>${[...new Set([...persons, ...(doc.person ? [doc.person] : [])])].map((p) => `<option value="${esc(p)}" ${doc.person === p ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select></label>` : ''}
       ${folder && examplesOf(folder).length ? `<div><p class="fieldhint">Oder tippe auf einen Vorschlag:</p><div class="chips">${examplesOf(folder).map((t) => `<button type="button" class="chip" data-action="chip" data-t="${esc(t)}">${esc(t)}</button>`).join('')}</div></div>` : ''}
       <label>Betrag in CHF (kannst du leer lassen)<input type="text" inputmode="decimal" id="docAmount" value="${doc.amount != null ? esc(String(doc.amount)) : ''}" maxlength="14" placeholder="z. B. 1234.50"></label>
       ${docItem ? `<p class="fieldhint">Gehört zur Checkliste: «${esc(docItem.title)}».${docItem.amount ? ` Trage ein: ${esc(docItem.amount)}.` : ''}</p>` : ''}
@@ -1254,6 +1336,16 @@ async function renderDoc(docId, params) {
   $('#docTitle').oninput = save;
   $('#docNote').oninput = save;
   $('#docAmount').oninput = save;
+  if ($('#docPerson')) $('#docPerson').onchange = async (e) => {
+    const old = doc.person || '';
+    const neu = e.target.value;
+    // Hat der Beleg noch den automatischen Namen, zieht der Name mit
+    if (doc.autoBase && doc.title === autoTitle(doc.autoBase, year, old)) { doc.title = autoTitle(doc.autoBase, year, neu); $('#docTitle').value = doc.title; }
+    if (neu) { doc.person = neu; await setSetting('lastPerson', neu); } else delete doc.person;
+    doc.updatedAt = Date.now();
+    await db.put('docs', doc);
+    toast(neu ? `Zugeordnet: ${neu}.` : 'Zuordnung entfernt.');
+  };
   $('#docUploaded').onchange = async (e) => {
     doc.uploaded = e.target.checked;
     doc.uploadedAt = doc.uploaded ? Date.now() : null;
@@ -1270,8 +1362,9 @@ async function renderDoc(docId, params) {
     const i = Number(btn.dataset.i);
     const fname = pdfName(year, folder || { name: 'Ordner' }, doc);
     if (a === 'chip') {
-      $('#docTitle').value = btn.dataset.t;
-      doc.title = btn.dataset.t;
+      doc.title = autoTitle(btn.dataset.t, year, doc.person);
+      doc.autoBase = btn.dataset.t;
+      $('#docTitle').value = doc.title;
       doc.updatedAt = Date.now();
       await db.put('docs', doc);
       toast('Name gespeichert.');
@@ -1333,6 +1426,7 @@ async function renderSettings() {
   const scanMode = await getScanMode();
   const autoCap = await getSetting('autoCapture', true);
   const userName = await getSetting('userName', '');
+  const persons = await getPersons(year);
   const storage = await getSetting('storage', '');
   const dirName = await getSetting('syncDirName', '');
   const enc = await encOn();
@@ -1352,6 +1446,11 @@ async function renderSettings() {
         <input type="text" id="userName" value="${esc(userName)}" maxlength="30" placeholder="z. B. Anna">
         <span class="fieldhint">Er wird bei neuen Belegen vermerkt, damit die Familie sieht, wer sie abgelegt hat.</span>
       </label>
+
+      <h3>Personen im Haushalt</h3>
+      <p>Nach dem Scannen fragt die App, wem der Beleg gehört. Der Name lautet dann zum Beispiel «Krankenkasse ${year} – Anna Muster». Die Liste wird mit der Familie abgeglichen.</p>
+      ${persons.length ? `<ul class="plain">${persons.map((p, i) => `<li><span>${esc(p)}</span><span><button class="iconbtn" data-action="personRename" data-i="${i}" title="Umbenennen" aria-label="${esc(p)} umbenennen">✎</button><button class="iconbtn danger" data-action="personDel" data-i="${i}" title="Entfernen" aria-label="${esc(p)} entfernen">✕</button></span></li>`).join('')}</ul>` : '<p class="muted">Noch niemand eingetragen.</p>'}
+      <div class="row"><button class="btn" data-action="personAdd">＋ Person hinzufügen</button></div>
 
       <h3>Scannen</h3>
       <label class="setrow">So sehen die Scans aus
@@ -1411,7 +1510,26 @@ async function renderSettings() {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const a = btn.dataset.action;
-    if (a === 'newYear') {
+    if (a === 'personAdd') {
+      const names = await namesDlg('Person hinzufügen', 'Du kannst mehrere Namen mit Komma trennen.', '');
+      if (names && names.length) { await setPersons(parseNames([...persons, ...names].join(','))); render(true); }
+    } else if (a === 'personRename') {
+      const old = persons[Number(btn.dataset.i)];
+      const n = old && (await promptDlg('Person umbenennen', 'Vor- und Nachname', old));
+      if (!n || n === old) return;
+      if (persons.some((p) => p.toLowerCase() === n.toLowerCase() && p !== old)) { toast('Diesen Namen gibt es schon.'); return; }
+      await setPersons(persons.map((p) => (p === old ? n : p)));
+      for (const d of await db.getAll('docs')) {
+        if (d.person !== old) continue;
+        if (d.autoBase && d.title.startsWith(autoTitle(d.autoBase, d.year, old))) d.title = autoTitle(d.autoBase, d.year, n) + d.title.slice(autoTitle(d.autoBase, d.year, old).length);
+        d.person = n; d.updatedAt = Date.now();
+        await db.put('docs', d);
+      }
+      render(true);
+    } else if (a === 'personDel') {
+      const old = persons[Number(btn.dataset.i)];
+      if (old && await confirmDlg('Person entfernen?', `«${old}» steht danach nicht mehr zur Auswahl. Bereits zugeordnete Belege bleiben unverändert.`, 'Entfernen')) { await setPersons(persons.filter((p) => p !== old)); render(true); }
+    } else if (a === 'newYear') {
       const y = await promptDlg('Neues Steuerjahr', 'Jahr (z. B. 2025)', String(year + 1), 'Anlegen');
       if (!y || !/^\d{4}$/.test(y)) return;
       await ensureYear(Number(y));
@@ -1780,8 +1898,18 @@ async function renderSummary() {
     const list = (await docsOf(f.id)).reverse();
     if (list.length) groups.push({ f, list });
   }
+  const persons = await getPersons(year);
+  const seen = new Set(groups.flatMap((g) => g.list.map((d) => d.person || '')));
+  const split = [...seen].filter(Boolean).length > 1 || (seen.has('') && [...seen].some(Boolean) && persons.length > 1);
+  const order = split ? [...persons.filter((p) => seen.has(p)), ...[...seen].filter((p) => p && !persons.includes(p)), ...(seen.has('') ? [''] : [])] : [null];
   const text = [`Steuerjahr ${year}: erfasste Beträge`, ''];
-  const body = groups.map((g) => {
+  const sections = order.map((pn) => {
+    if (pn !== null) text.push(`== ${pn || 'Nicht zugeordnet'} ==`, '');
+    const sub = pn === null ? groups : groups.map((g) => ({ f: g.f, list: g.list.filter((d) => (d.person || '') === pn) })).filter((g) => g.list.length);
+    return (pn === null ? '' : `<h2 class="sectitle">${esc(pn || 'Nicht zugeordnet')}</h2>`) + sumBody(sub, text);
+  });
+  const body = sections.join('');
+  function sumBody(grp, text) { return grp.map((g) => {
     const amounts = g.list.filter((d) => d.amount != null);
     const sum = amounts.reduce((t, d) => t + d.amount, 0);
     text.push(g.f.name);
@@ -1794,7 +1922,7 @@ async function renderSummary() {
     text.push('');
     return `<h3 class="upfolder">${esc(g.f.icon || '📁')} ${esc(g.f.name)}</h3>
       <table class="sumtab">${rows}${amounts.length > 1 ? `<tr class="tot"><td>Total</td><td class="num">CHF ${fmtChf(sum)}</td></tr>` : ''}</table>`;
-  }).join('');
+  }).join(''); }
   setHeader('Zahlen fürs Portal', { back: '#/' });
   view().innerHTML = `
     <section class="upsteps noprint">
@@ -1819,7 +1947,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.9.1';
+const APP_VERSION = '1.10.0';
 async function render(keepScroll = false) {
   const scrollY = window.scrollY;
   revokeUrls();

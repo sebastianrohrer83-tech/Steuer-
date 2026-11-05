@@ -259,3 +259,7 @@ ol.bigsteps li { font-size: 1.02rem; }
 .popt { flex-direction: row; align-items: center; text-align: left; color: var(--text); font-weight: 500; }
 .popt input[type=checkbox] { flex: none; }
 .stepper li.now b { color: #0f1f3d; }
+
+/* Personenfilter im Ordner */
+.pfilter { margin: 4px 0 12px; }
+.chip.on { background: var(--primary); color: #fff; }

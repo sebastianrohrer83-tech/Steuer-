@@ -79,8 +79,8 @@ für Kamera, Service Worker und Module eine echte Web-Adresse braucht.
 
 ## Checkliste und Zahlen fürs Portal
 
-- **Persönliche Checkliste:** In der Einführung (oder später auf der Startseite) beantwortest du sieben Fragen (angestellt,
-  selbständig, Rente, Wertschriften, Säule 3a, Wohneigentum, Kinder). Daraus entsteht eine Liste der Belege, die typischerweise
+- **Persönliche Checkliste:** In der Einführung (oder später auf der Startseite) beantwortest du neun Fragen (angestellt,
+  selbständig, Rente, Wertschriften, Säule 3a, Wohneigentum, Kinder, Unterhalt zahlen, Unterhalt erhalten). Daraus entsteht eine Liste der Belege, die typischerweise
   gebraucht werden. Pro Punkt: «Scannen», «Aus Fotos» oder «Trifft nicht zu». Ein so abgelegter Beleg trägt den Namen des
   Punktes und weiss, welche Zahl einzutragen ist. Ein neues Steuerjahr übernimmt die Angaben des Vorjahres.
 - **Beträge:** Jeder Beleg hat ein optionales Feld «Betrag in CHF».
@@ -88,6 +88,17 @@ für Kamera, Service Worker und Module eine echte Web-Adresse braucht.
 - Angaben, Haken und Beträge werden wie die Belege mit der Familie abgeglichen.
 - Die Checkliste ist eine allgemeine Orientierung (typische Unterlagen in der Schweiz) und keine Steuerberatung. Sie ist nicht
   auf einen Kanton zugeschnitten. Fristen und Vorgaben des Kantons gehen vor.
+
+## Personen und automatische Namen
+
+- **Personen im Haushalt:** Beim ersten Scan fragt die App einmalig nach den Namen (z. B. «Anna Muster, Ben Muster»). Die Liste
+  lässt sich in den Einstellungen ändern (hinzufügen, umbenennen, entfernen) und wird mit der Familie abgeglichen.
+- **Zuordnung:** Nach dem Scan tippst du auf die Person (die zuletzt gewählte steht oben). Bei nur einer Person entfällt die Frage.
+  Im Beleg lässt sich die Person ändern.
+- **Automatischer Name:** «Krankenkasse 2025 – Anna Muster». Der erste Teil kommt vom Checklistenpunkt oder vom Ordner, dazu das
+  Steuerjahr und die Person. Gleiche Namen bekommen «(2)», «(3)». Das PDF heisst genauso.
+- **Ordner und Zahlen:** Im Ordner lässt sich nach Person filtern. «Zahlen fürs Portal» trennt die Beträge nach Person.
+- Der Name entsteht aus Ordner, Jahr und Person. Der Inhalt des Scans wird nicht gelesen (keine Texterkennung).
 
 ## Gemeinsam im Haushalt (geteilter iCloud-Ordner)
 
