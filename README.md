@@ -85,9 +85,13 @@ Die App hat keinen Server. Alle im Haushalt nutzen einen gemeinsamen Ordner in i
 1. **Einmalig:** In der Dateien-App einen Ordner «Steuer» in iCloud Drive anlegen, gedrückt halten, «Teilen» →
    «Zusammenarbeiten» → Personen aus dem Haushalt einladen.
 2. In der App unter **Einstellungen** den eigenen **Namen** eintragen.
-3. **Meine Datei speichern:** Die App erzeugt `Steuerordner_Sync_<Name>.zip`. Im Teilen-Menü «In Dateien sichern» →
-   Ordner «Steuer», eine ältere Datei derselben Person ersetzen.
-4. **Dateien einlesen:** Im Ordner «Steuer» *alle* Dateien markieren und öffnen. Die App führt sie zusammen.
+3. **Jetzt speichern** (Knopf auf der Startseite, sobald der Speicherort festgelegt ist):
+   - *Chrome auf Android oder am Computer:* Beim ersten Mal den Ordner «Steuer» wählen. Danach schreibt die App
+     `Steuerordner_Sync_<Name>.zip` direkt dorthin und liest dabei gleich die Dateien der anderen ein. Nach einem
+     Neustart des Browsers fragt dieser einmal nach der Erlaubnis.
+   - *iPhone/iPad (Safari):* Safari kann keinen Ordner dauerhaft beschreiben. Der Knopf öffnet das Teilen-Menü,
+     dort «In Dateien sichern» → Ordner «Steuer», die ältere Datei ersetzen.
+4. **Dateien einlesen** (nur iPhone nötig, Einstellungen): Im Ordner «Steuer» *alle* Dateien markieren. Die App führt sie zusammen.
 
 Jede Person überschreibt nur die eigene Datei, deshalb gehen keine Änderungen verloren, auch wenn mehrere gleichzeitig
 arbeiten. Beim Zusammenführen gilt:

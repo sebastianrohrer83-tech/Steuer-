@@ -45,8 +45,8 @@ function storageGuideHtml(kind) {
     return `<p><strong>So richtet ihr den gemeinsamen Ordner ein:</strong></p>
       <ol class="steps">
         <li><strong>Einmalig, eine Person:</strong> In der Dateien-App in <em>iCloud Drive</em> einen Ordner «Steuer» anlegen, gedrückt halten, «Teilen», «Zusammenarbeiten» und die Familie einladen (Bearbeiten erlauben).</li>
-        <li><strong>Jede Person:</strong> Unter Einstellungen auf <em>Meine Datei speichern</em> tippen, «In Dateien sichern» wählen und den Ordner «Steuer» in iCloud Drive auswählen.</li>
-        <li><strong>Zum Abgleich:</strong> <em>Dateien einlesen</em> tippen und im Ordner «Steuer» alle Dateien markieren.</li>
+        <li><strong>Jede Person:</strong> Auf der Startseite auf <em>Jetzt speichern</em> tippen. Auf dem iPhone «In Dateien sichern» wählen und den Ordner «Steuer» auswählen. Auf Android oder am Computer wählst du den Ordner einmal, danach geht es von selbst.</li>
+        <li><strong>Zum Abgleich:</strong> Auf Android und am Computer erledigt <em>Jetzt speichern</em> das gleich mit. Auf dem iPhone unter Einstellungen <em>Dateien einlesen</em> tippen und im Ordner «Steuer» alle Dateien markieren.</li>
       </ol>`;
   }
   if (kind === 'gdrive') {
@@ -54,14 +54,14 @@ function storageGuideHtml(kind) {
       <ol class="steps">
         <li><strong>Jede Person:</strong> Google-Drive-App installieren und in der Dateien-App unter «…», «Bearbeiten» den Eintrag «Drive» einschalten.</li>
         <li><strong>Einmalig, eine Person:</strong> In Google Drive einen Ordner «Steuer» anlegen und mit den Google-Konten der Familie teilen (Bearbeiter).</li>
-        <li><strong>Jede Person:</strong> Unter Einstellungen auf <em>Meine Datei speichern</em> tippen, «In Dateien sichern» wählen und den Ordner «Steuer» in Drive auswählen.</li>
-        <li><strong>Zum Abgleich:</strong> <em>Dateien einlesen</em> tippen und im Ordner «Steuer» alle Dateien markieren.</li>
+        <li><strong>Jede Person:</strong> Auf der Startseite auf <em>Jetzt speichern</em> tippen. Auf dem iPhone «In Dateien sichern» wählen und den Ordner «Steuer» in Drive auswählen. Auf Android oder am Computer wählst du den Ordner einmal, danach geht es von selbst.</li>
+        <li><strong>Zum Abgleich:</strong> Auf Android und am Computer erledigt <em>Jetzt speichern</em> das gleich mit. Auf dem iPhone unter Einstellungen <em>Dateien einlesen</em> tippen und im Ordner «Steuer» alle Dateien markieren.</li>
       </ol>`;
   }
   return `<p>Deine Belege liegen auf diesem Handy. Damit nichts verloren geht, speichere ab und zu eine <strong>Sicherung</strong>:</p>
     <ol class="steps">
-      <li>Unter Einstellungen auf <em>Meine Datei speichern</em> tippen.</li>
-      <li>«In Dateien sichern» wählen und die Datei an einem sicheren Ort ablegen, zum Beispiel in iCloud Drive.</li>
+      <li>Auf der Startseite auf <em>Jetzt speichern</em> tippen.</li>
+      <li>Auf dem iPhone «In Dateien sichern» wählen, auf Android und am Computer einmal einen Ordner auswählen. Zum Beispiel in iCloud Drive oder Google Drive.</li>
     </ol>`;
 }
 
@@ -363,6 +363,82 @@ async function saveSyncFile(share) {
   } finally { busy(false); }
 }
 
+// Automatisch speichern («Jetzt speichern»):
+// - Chrome/Android/Computer: Der Ordner (z. B. in Google Drive oder iCloud Drive) wird einmal gewählt und danach
+//   direkt beschrieben. Dateien der anderen Personen im Ordner werden dabei gleich eingelesen.
+// - iPhone/iPad (Safari kann keinen Ordner dauerhaft beschreiben): ein Fingertipp, dann «In Dateien sichern».
+const canWriteFolder = () => typeof window.showDirectoryPicker === 'function';
+let autoSaving = false;
+
+async function folderAccess(dir) {
+  const opt = { mode: 'readwrite' };
+  if ((await dir.queryPermission(opt)) === 'granted') return true;
+  return (await dir.requestPermission(opt)) === 'granted';
+}
+
+async function pickSyncFolder(storage) {
+  const where = storage === 'gdrive' ? 'in Google Drive' : storage === 'icloud' ? 'in iCloud Drive' : 'an einem sicheren Ort, zum Beispiel in iCloud Drive oder Google Drive';
+  const go = await dialog(`
+    <h2>Ordner einmalig auswählen</h2>
+    <p>Wähle gleich den gemeinsamen Ordner ${esc(where)} (zum Beispiel «Steuer»). Danach speichert die App ohne weitere Fragen genau dort hinein.</p>
+    <div class="dlg-actions"><button type="button" data-value="cancel" class="btn">Abbrechen</button><button type="button" data-value="go" class="btn primary">Ordner wählen</button></div>`);
+  if (go !== 'go') return null;
+  const dir = await window.showDirectoryPicker({ id: 'steuerordner', mode: 'readwrite' });
+  await setSetting('syncDir', dir);
+  await setSetting('syncDirName', dir.name);
+  return dir;
+}
+
+async function saveToFolder(storage) {
+  let dir = await getSetting('syncDir', null);
+  let ok = false;
+  if (dir) { try { ok = await folderAccess(dir); } catch { ok = false; } }
+  if (!ok) {
+    dir = await pickSyncFolder(storage);
+    if (!dir) return;
+  }
+  const user = await ensureUserName();
+  const fname = syncFileName(user);
+  busy(true, 'Wird gespeichert …');
+  try {
+    // 1. Dateien der anderen Personen einlesen
+    const total = { added: 0, updated: 0, deleted: 0, folders: 0 };
+    let skipped = 0;
+    for await (const [name, h] of dir.entries()) {
+      if (h.kind !== 'file' || name === fname || !/^Steuerordner_Sync.*\.zip$/i.test(name)) continue;
+      try {
+        const st = await mergeSyncFile(await h.getFile());
+        for (const k of Object.keys(total)) total[k] += st[k];
+      } catch { skipped++; }
+    }
+    // 2. Eigene Datei schreiben (enthält jetzt alles)
+    const blob = await buildSyncZip();
+    const w = await (await dir.getFileHandle(fname, { create: true })).createWritable();
+    await w.write(blob);
+    await w.close();
+    await setSetting('lastSync', Date.now());
+    await setSetting('syncDirName', dir.name);
+    const got = total.added + total.updated + total.deleted;
+    toast(`✓ Gespeichert im Ordner «${dir.name}».${got ? ` Von den anderen übernommen: ${got} Änderung${got === 1 ? '' : 'en'}.` : ''}${skipped ? ` ${skipped} Datei(en) konnten nicht gelesen werden.` : ''}`, 5000);
+  } finally { busy(false); }
+}
+
+async function autoSave() {
+  if (autoSaving) return;
+  autoSaving = true;
+  try {
+    const storage = await getSetting('storage', '');
+    if (!storage) { toast('Lege zuerst den Speicherort fest.'); location.hash = '#/settings'; return; }
+    if (canWriteFolder()) await saveToFolder(storage);
+    else await saveSyncFile(true);
+  } catch (err) {
+    if (!err || err.name !== 'AbortError') toast('Speichern hat nicht geklappt: ' + ((err && err.message) || err), 6000);
+  } finally {
+    autoSaving = false;
+    render();
+  }
+}
+
 // Sync-Datei einlesen und mit dem lokalen Bestand zusammenführen:
 // - Dokumente: gleiche ID → neuere Version gewinnt; Löschungen werden übernommen
 // - Ordner: Standardordner über ihre feste ID, eigene Ordner über Jahr + Name (keine Duplikate)
@@ -579,6 +655,7 @@ async function renderHome() {
   const allUp = docs.length > 0 && uploaded === docs.length;
   const sync = await changesSinceSync();
   const storage = await getSetting('storage', '');
+  const dirName = canWriteFolder() ? await getSetting('syncDirName', '') : '';
   setHeader('Steuerordner', { right: `<a class="iconbtn" href="#/help" title="Hilfe" aria-label="Hilfe">?</a><a class="iconbtn" href="#/settings" title="Einstellungen" aria-label="Einstellungen">⚙︎</a>` });
   view().innerHTML = `
     <section class="stepcard">
@@ -592,6 +669,10 @@ async function renderHome() {
         <li class="${allUp ? 'done' : (first ? '' : 'now')}"><b>${allUp ? '✓' : '2'}</b><span>Belege hochladen<small>${uploaded} von ${docs.length} hochgeladen</small></span></li>
       </ol>
     </section>
+    ${storage ? `<section class="savecard ${!sync || sync.n ? 'pending' : ''}">
+      <button class="btn ${!sync || sync.n ? 'primary' : ''} big wide" data-action="autoSave">💾 Jetzt speichern</button>
+      <p class="muted small">${sync ? `Zuletzt gespeichert: ${new Date(sync.last).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' })}${sync.n ? ` · ${sync.n} Änderung${sync.n === 1 ? '' : 'en'} noch nicht gesichert` : ' · alles gesichert ✓'}` : 'Noch nie gespeichert.'} ${canWriteFolder() ? (dirName ? `Ordner: «${esc(dirName)}».` : 'Beim ersten Mal wählst du den Ordner aus.') : 'Danach «In Dateien sichern» wählen.'}</p>
+    </section>` : ''}
     ${first ? `<section class="tipcard"><strong>So fängst du an</strong><ol>
       <li>Tippe unten auf <b>Beleg scannen</b>.</li>
       <li>Wähle den passenden Ordner, zum Beispiel <b>Lohn &amp; Einkommen</b> für deinen Lohnausweis.</li>
@@ -608,7 +689,6 @@ async function renderHome() {
       <button class="card card-add" data-action="newFolder"><div class="card-icon">＋</div><div class="card-name">Eigener Ordner</div></button>
     </section>
     <button class="linkbtn" data-action="quickPick">🖼️ Belege aus Fotos oder Dateien hinzufügen</button>
-    ${sync ? `<a class="syncline ${sync.n ? 'pending' : ''}" href="#/settings">Letzter Abgleich mit der Familie: ${fmtDate(sync.last)}${sync.n ? ` · ${sync.n} Änderung${sync.n === 1 ? '' : 'en'} noch nicht abgeglichen` : ''} ›</a>` : ''}
     <nav class="bottombar">
       <button class="btn primary big wide" data-action="quickScan">📷 Beleg scannen</button>
       <a class="btn big" href="#/upload">📤 Hochladen</a>
@@ -629,7 +709,8 @@ async function renderHome() {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const a = btn.dataset.action;
-    if (a === 'newFolder') {
+    if (a === 'autoSave') await autoSave();
+    else if (a === 'newFolder') {
       const name = await promptDlg('Eigener Ordner', 'Wie soll der Ordner heissen?', '', 'Anlegen');
       if (!name) return;
       await db.put('folders', { id: uid(), year, name, icon: '📁', hint: '', order: folders.length + 1, createdAt: Date.now() });
@@ -750,12 +831,11 @@ async function renderDoc(docId, params) {
   let saveTimer;
   const save = () => {
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(async () => {
-      doc.title = $('#docTitle').value.trim() || doc.title;
-      doc.note = $('#docNote').value.trim();
-      doc.updatedAt = Date.now();
-      await db.put('docs', doc);
-    }, 300);
+    // Werte sofort merken: wer die Seite schnell verlässt, verliert den Namen sonst (Eingabefeld ist dann schon weg)
+    doc.title = $('#docTitle').value.trim() || doc.title;
+    doc.note = $('#docNote').value.trim();
+    doc.updatedAt = Date.now();
+    saveTimer = setTimeout(() => db.put('docs', doc), 150);
   };
   $('#docTitle').oninput = save;
   $('#docNote').oninput = save;
@@ -839,6 +919,7 @@ async function renderSettings() {
   const autoCap = await getSetting('autoCapture', true);
   const userName = await getSetting('userName', '');
   const storage = await getSetting('storage', '');
+  const dirName = await getSetting('syncDirName', '');
   let storageInfo = '';
   if (navigator.storage && navigator.storage.estimate) {
     const e = await navigator.storage.estimate();
@@ -881,9 +962,11 @@ async function renderSettings() {
       ${storageOptionsHtml(storage)}
       ${storage ? `<div class="guide">${storageGuideHtml(storage)}</div>` : '<p class="muted">Wähle oben deinen Speicherort.</p>'}
       <div class="row">
-        <button class="btn primary" data-action="syncSave">⇪ Meine Datei speichern</button>
+        ${storage ? '<button class="btn primary" data-action="autoSave">💾 Jetzt speichern</button>' : ''}
+        <button class="btn ${storage ? '' : 'primary'}" data-action="syncSave">⇪ Meine Datei speichern</button>
         <button class="btn" data-action="syncLoad">⤒ ${storage === 'local' || !storage ? 'Sicherung einlesen' : 'Dateien einlesen'}</button>
       </div>
+      ${canWriteFolder() && storage ? `<p class="muted">Ordner für «Jetzt speichern»: ${dirName ? `<strong>${esc(dirName)}</strong>` : 'noch nicht gewählt'} <button class="linkbtn inline" data-action="pickDir">${dirName ? 'ändern' : 'jetzt wählen'}</button></p>` : ''}
       <p class="muted">${sync ? `Letzter Abgleich: ${new Date(sync.last).toLocaleString('de-CH')}${sync.n ? ` · ${sync.n} Änderung(en) seither` : ''}` : 'Noch kein Abgleich durchgeführt.'} Die Datei ist zugleich deine Sicherung.</p>
 
       <h3>Hilfe</h3>
@@ -933,6 +1016,10 @@ async function renderSettings() {
       toast(n ? `${n} Standardordner ergänzt.` : 'Alle Standardordner sind vorhanden.');
     } else if (a === 'exportOpen') await exportYearZip(year, true);
     else if (a === 'exportAll') await exportYearZip(year, false);
+    else if (a === 'autoSave') await autoSave();
+    else if (a === 'pickDir') {
+      try { if (await pickSyncFolder(storage)) { toast('Ordner gewählt.'); render(); } } catch (err) { if (err.name !== 'AbortError') toast('Fehler: ' + err.message, 5000); }
+    }
     else if (a === 'syncSave') await saveSyncFile(true);
     else if (a === 'syncLoad') {
       const input = $('#zipInput');
@@ -1164,7 +1251,7 @@ async function renderUpload() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 async function render() {
   revokeUrls();
   $('#headerRight').onclick = null;
