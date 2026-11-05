@@ -122,6 +122,20 @@ Getestet (Playwright, drei Geräte plus ein iPhone-Fall ohne Ordnerzugriff, geme
 Dokumente anlegen und abgleichen, Hintergrund-Abgleich, Löschen von Belegen und Ordnern, Umbenennen, zwei Geräte mit
 gleichem Namen, Abbrechen im Assistenten. Auf einem echten iPhone und mit echtem iCloud-/Google-Drive-Ordner ist es nicht geprüft.
 
+## Verschlüsselte Sync-Dateien
+
+- Unter Einstellungen bei «Verschlüsselung» (oder beim ersten Abgleich) legst du ein Passwort fest. Alle in der Familie
+  verwenden dasselbe. Die Dateien im gemeinsamen Ordner sind dann mit **AES-256-GCM** verschlüsselt, der Schlüssel entsteht
+  per **PBKDF2-SHA-256** (300 000 Durchläufe, eigener Salt pro Datei) im Browser. Das Passwort verlässt das Gerät nie.
+- Verschlüsselte Dateien heissen `Steuerordner_Sync_<Name>_<Kürzel>.zip.enc`. Beim Einschalten wird die lesbare Fassung der
+  eigenen Datei aus dem Ordner entfernt (Chrome); auf dem iPhone löschst du sie selbst in der Dateien-App.
+- Die App erkennt verschlüsselte Dateien am Dateikopf und fragt beim Abgleich nach dem Passwort, falls es fehlt. Ein falsches
+  Passwort wird abgelehnt und nicht gespeichert. Lesbare (alte) Dateien werden weiter gelesen.
+- Das Passwort liegt auf dem Gerät in der App-Datenbank, damit sich die App im Hintergrund abgleichen kann. Wer das entsperrte
+  Gerät benutzen kann, hat damit auch Zugriff auf die Belege selbst. Geschützt wird der **Ordner in der Cloud**, nicht das Handy.
+- Ohne Passwort lassen sich die Dateien im Ordner nicht wiederherstellen. Die Belege in den Apps bleiben erhalten.
+- Nicht verschlüsselt sind die Daten in der App auf dem Gerät und PDFs, die du selbst teilst.
+
 ## Technik
 
 Reines HTML/CSS/JavaScript ohne Build-Schritt und ohne Abhängigkeiten.

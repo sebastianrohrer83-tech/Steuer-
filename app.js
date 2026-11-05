@@ -420,7 +420,72 @@ async function getDeviceId() {
   if (!d) { d = Math.random().toString(36).slice(2, 6).padEnd(4, '0'); await setSetting('deviceId', d); }
   return d;
 }
-async function ownSyncName() { return syncFileName(await ensureUserName(), await getDeviceId()); }
+async function ownSyncNames() { const plain = syncFileName(await ensureUserName(), await getDeviceId()); return { plain, enc: plain + '.enc' }; }
+// Eigene Dateien verschlüsselt schreiben? Das Passwort bleibt auch nach dem Ausschalten gespeichert,
+// damit verschlüsselte Dateien der anderen weiter gelesen werden können.
+async function encOn() { return !!(await getSetting('syncPass', '')) && !(await getSetting('syncEncOff', false)); }
+async function ownSyncName() { const n = await ownSyncNames(); return (await encOn()) ? n.enc : n.plain; }
+
+// Verschlüsselung der Sync-Dateien: AES-256-GCM, der Schlüssel entsteht per PBKDF2 aus dem gemeinsamen Passwort.
+// Aufbau: «STXENC1\0» (8 Byte), Durchläufe (4), Salt (16), IV (12), danach der verschlüsselte Inhalt.
+const ENC_MAGIC = [83, 84, 88, 69, 78, 67, 49, 0];
+const ENC_HEAD = 40;
+const ENC_ITER = 300000;
+const PASS_NOTE = 'Mindestens 8 Zeichen, am besten ein ganzer Satz. Alle in der Familie brauchen dasselbe Passwort. Wer es vergisst, kann die Dateien im Ordner nicht mehr öffnen. Die Belege in den Apps bleiben erhalten.';
+const isEncrypted = (u8) => u8.length > ENC_HEAD && ENC_MAGIC.every((b, i) => u8[i] === b);
+const encError = (code, msg) => Object.assign(new Error(msg), { code });
+async function deriveKey(pass, salt, iter) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function encryptBytes(plain, pass) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(pass, salt, ENC_ITER);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plain));
+  const out = new Uint8Array(ENC_HEAD + ct.length);
+  out.set(ENC_MAGIC, 0);
+  new DataView(out.buffer).setUint32(8, ENC_ITER);
+  out.set(salt, 12);
+  out.set(iv, 28);
+  out.set(ct, ENC_HEAD);
+  return out;
+}
+async function decryptBytes(u8, pass) {
+  const iter = new DataView(u8.buffer, u8.byteOffset, u8.byteLength).getUint32(8);
+  if (iter < 1000 || iter > 5000000) throw encError('BAD_FILE', 'Beschädigte Datei');
+  const key = await deriveKey(pass, u8.slice(12, 28), iter);
+  try { return await crypto.subtle.decrypt({ name: 'AES-GCM', iv: u8.slice(28, 40) }, key, u8.subarray(ENC_HEAD)); }
+  catch { throw encError('WRONG_PASS', 'Das Passwort stimmt nicht.'); }
+}
+async function setPassphrase(pass) {
+  await setSetting('syncPass', pass);
+  await setSetting('syncEncOff', false);
+  await setSetting('encDirty', true); // eigene Datei beim nächsten Abgleich neu schreiben
+  seenFiles.clear();
+}
+async function passDlg({ title, note, confirm = false, okLabel = 'Speichern' }) {
+  for (;;) {
+    const r = await dialog(`<h2>${esc(title)}</h2><p class="muted small">${esc(note)}</p>
+      <label>Passwort<input type="password" name="p" required minlength="8" autocomplete="${confirm ? 'new-password' : 'current-password'}"></label>
+      ${confirm ? '<label>Passwort wiederholen<input type="password" name="p2" required minlength="8" autocomplete="new-password"></label>' : ''}
+      <div class="dlg-actions"><button type="button" data-value="cancel" class="btn">Abbrechen</button><button type="submit" class="btn primary">${esc(okLabel)}</button></div>`);
+    if (!r) return null;
+    if (confirm && r.p !== r.p2) { toast('Die beiden Passwörter sind nicht gleich. Bitte nochmals.', 3500); continue; }
+    return r.p;
+  }
+}
+// Einmalig beim ersten Abgleich anbieten
+async function offerEncryption() {
+  if ((await getSetting('syncPass', '')) || (await getSetting('encAsked'))) return;
+  await setSetting('encAsked', true);
+  const r = await dialog(`<h2>Dateien verschlüsseln?</h2>
+    <p>Im gemeinsamen Ordner liegen deine Belege, zum Beispiel Lohnausweis und Kontoauszüge. Mit einem Passwort kann sie niemand lesen, der Zugriff auf den Ordner hat, etwa der Cloud-Anbieter. Alle in der Familie brauchen dasselbe Passwort.</p>
+    <div class="dlg-actions column"><button type="button" data-value="yes" class="btn primary">🔒 Passwort festlegen (empfohlen)</button><button type="button" data-value="cancel" class="btn ghost">Später</button></div>`);
+  if (r !== 'yes') return;
+  const p = await passDlg({ title: 'Passwort festlegen', note: PASS_NOTE, confirm: true });
+  if (p) await setPassphrase(p);
+}
 
 // Name der Person an diesem Gerät (Haushalt): wird bei neuen Dokumenten gespeichert und im Dateinamen verwendet.
 async function ensureUserName() {
@@ -457,13 +522,21 @@ async function buildSyncZip() {
   return zip.finish();
 }
 
+// Die Datei, die in den Ordner kommt: Zip, bei gesetztem Passwort verschlüsselt.
+async function buildSyncFile() {
+  const zip = await buildSyncZip();
+  const pass = (await encOn()) ? await getSetting('syncPass', '') : '';
+  if (!pass) return zip;
+  return new Blob([await encryptBytes(new Uint8Array(await zip.arrayBuffer()), pass)], { type: 'application/octet-stream' });
+}
+
 // Sync-Datei von Hand speichern (Einstellungen): Teilen-Menü bzw. Download.
 async function saveSyncFile(share) {
   const fname = await ownSyncName();
   busy(true, 'Sync-Datei wird erstellt …');
   try {
     const t0 = Date.now();
-    const blob = await buildSyncZip();
+    const blob = await buildSyncFile();
     let done = true;
     if (share) done = await shareOrDownload(blob, fname, 'Steuerordner Sync-Datei'); else download(blob, fname);
     if (done) {
@@ -484,7 +557,7 @@ const canWriteFolder = () => typeof window.showDirectoryPicker === 'function';
 const quiet = { running: false };
 let autoSaving = false;
 const seenFiles = new Map(); // Dateiname -> «Grösse:Änderungszeit»: unveränderte Dateien nicht nochmals einlesen
-const SYNC_NAME = /^Steuerordner_Sync.*\.zip$/i;
+const SYNC_NAME = /^Steuerordner_Sync.*\.zip(\.enc)?$/i;
 
 async function folderAccess(dir, ask = true) {
   const opt = { mode: 'readwrite' };
@@ -508,35 +581,52 @@ async function pickSyncFolder(storage) {
 }
 
 // Liest die Dateien der anderen Geräte im Ordner ein und schreibt danach die eigene Datei.
-async function syncWithFolder(dir, { force = false } = {}) {
-  const fname = await ownSyncName();
+async function syncWithFolder(dir, { force = false, noWrite = false } = {}) {
+  const names = await ownSyncNames();
+  const mine = new Set([names.plain, names.enc]);
   const total = { added: 0, updated: 0, deleted: 0, folders: 0 };
-  let skipped = 0;
+  let skipped = 0, okFiles = 0, wrongPass = 0, needPass = false;
   for await (const [name, h] of dir.entries()) {
-    if (h.kind !== 'file' || name === fname || !SYNC_NAME.test(name)) continue;
+    if (h.kind !== 'file' || mine.has(name) || !SYNC_NAME.test(name)) continue;
+    let sig = '';
     try {
       const file = await h.getFile();
-      const sig = `${file.size}:${file.lastModified}`;
+      sig = `${file.size}:${file.lastModified}`;
       if (!force && seenFiles.get(name) === sig) continue;
       const st = await mergeSyncFile(file);
       seenFiles.set(name, sig);
+      okFiles++;
       for (const k of Object.keys(total)) total[k] += st[k];
-    } catch { skipped++; }
+    } catch (e) {
+      if (e.code === 'NEED_PASS') needPass = true;
+      else {
+        skipped++;
+        if (e.code === 'WRONG_PASS') { wrongPass++; if (sig) seenFiles.set(name, sig); } // nicht jede Minute neu versuchen
+      }
+    }
   }
   const got = total.added + total.updated + total.deleted + total.folders;
+  // Verschlüsselte Dateien ohne Passwort: nichts schreiben, erst nach der Passwort-Eingabe
+  if (needPass || noWrite) return { got, skipped, wrote: false, needPass, wrongPass, okFiles, total };
   const ch = await changesSinceSync();
+  const pass = (await encOn()) ? await getSetting('syncPass', '') : '';
+  const dirty = await getSetting('encDirty', false);
   let wrote = false;
-  if (force || got || !ch || ch.n) {
+  if (force || got || dirty || !ch || ch.n) {
+    const fname = pass ? names.enc : names.plain;
     const t0 = Date.now();
-    const blob = await buildSyncZip();
+    const blob = await buildSyncFile();
     const w = await (await dir.getFileHandle(fname, { create: true })).createWritable();
     await w.write(blob);
     await w.close();
+    // Die andere Fassung der eigenen Datei entfernen: nach dem Verschlüsseln soll keine lesbare Kopie liegen bleiben.
+    try { await dir.removeEntry(pass ? names.plain : names.enc); } catch { /* gab es nicht */ }
     await setSetting('lastSync', t0);
+    await setSetting('encDirty', false);
     wrote = true;
   }
   await setSetting('syncDirName', dir.name);
-  return { got, skipped, wrote, total };
+  return { got, skipped, wrote, needPass: false, wrongPass, okFiles, total };
 }
 
 async function saveToFolder(storage) {
@@ -548,11 +638,28 @@ async function saveToFolder(storage) {
     if (!dir) return;
   }
   await ensureUserName();
+  await offerEncryption();
   busy(true, 'Wird abgeglichen …');
   try {
     while (quiet.running) await new Promise((r) => setTimeout(r, 150));
-    const r = await syncWithFolder(dir, { force: true });
-    toast(`✓ Abgeglichen mit dem Ordner «${dir.name}».${r.got ? ` Von den anderen übernommen: ${r.got} Änderung${r.got === 1 ? '' : 'en'}.` : ' Bei den anderen gibt es nichts Neues.'}${r.skipped ? ` ${r.skipped} Datei(en) konnten nicht gelesen werden.` : ''}`, 5500);
+    let r = await syncWithFolder(dir, { force: true });
+    if (r.needPass) {
+      busy(false);
+      const p = await passDlg({ title: 'Verschlüsselte Dateien', note: 'Im Ordner liegen verschlüsselte Dateien. Gib das Passwort ein, das ihr in der Familie verwendet.', okLabel: 'Entsperren' });
+      if (!p) { toast('Ohne Passwort kann nicht abgeglichen werden.', 4000); return; }
+      busy(true, 'Wird abgeglichen …');
+      await setPassphrase(p);
+      // Erst prüfen, ohne zu schreiben: mit falschem Passwort darf keine Datei entstehen
+      const probe = await syncWithFolder(dir, { force: true, noWrite: true });
+      if (!probe.okFiles && probe.wrongPass) {
+        await setSetting('syncPass', '');
+        await setSetting('encDirty', false);
+        toast('Das Passwort stimmt nicht.', 5000);
+        return;
+      }
+      r = await syncWithFolder(dir, { force: true });
+    }
+    toast(`✓ Abgeglichen mit dem Ordner «${dir.name}».${r.got ? ` Von den anderen übernommen: ${r.got} Änderung${r.got === 1 ? '' : 'en'}.` : ' Bei den anderen gibt es nichts Neues.'}${r.wrongPass ? ` ${r.wrongPass} Datei(en) haben ein anderes Passwort. Hat jemand es geändert? Neues Passwort unter Einstellungen eintragen.` : ''}${r.skipped - r.wrongPass > 0 ? ` ${r.skipped - r.wrongPass} Datei(en) konnten nicht gelesen werden.` : ''}`, 6500);
   } finally { busy(false); }
 }
 
@@ -578,45 +685,87 @@ async function quietSync() {
 
 // iPhone/iPad: Assistent mit zwei Schritten
 async function syncViaFiles() {
-  const user = await ensureUserName();
-  const fname = syncFileName(user, await getDeviceId());
-  let t0 = 0, blob = null, blobP = null;
-  const build = () => { t0 = Date.now(); blobP = buildSyncZip(); return blobP; };
+  await ensureUserName();
+  await offerEncryption();
+  let fname = await ownSyncName();
+  let t0 = 0, blob = null, blobP = null, locked = [];
+  const build = () => { t0 = Date.now(); blobP = buildSyncFile(); return blobP; };
   build();
   const res = dialog(`
     <h2>Abgleich mit der Familie</h2>
     <p><strong>Schritt 1:</strong> Hole die Änderungen der anderen. Tippe auf «Dateien wählen», öffne den gemeinsamen Ordner und markiere <em>alle</em> Dateien. Überspringe den Schritt, wenn du allein arbeitest.</p>
-    <label class="btn filebtn">📂 Dateien wählen<input type="file" id="wizFiles" accept=".zip,application/zip" multiple hidden></label>
+    <label class="btn filebtn">📂 Dateien wählen<input type="file" id="wizFiles" multiple hidden></label>
     <p id="wizState" class="muted small">Noch nichts gewählt.</p>
-    <p><strong>Schritt 2:</strong> Sichere deine Datei im selben Ordner. Ersetze dabei die ältere Datei «${esc(fname)}».</p>
+    <div id="wizPass" hidden>
+      <label>Passwort der Familie<input type="password" id="wizPassIn" autocomplete="current-password"></label>
+      <button type="button" id="wizPassBtn" class="btn small">🔓 Entsperren</button>
+    </div>
+    <p><strong>Schritt 2:</strong> Sichere deine Datei im selben Ordner. Ersetze dabei die ältere Datei «<span id="wizName">${esc(fname)}</span>».</p>
     <div class="dlg-actions column"><button type="button" data-value="save" class="btn primary" disabled>Wird vorbereitet …</button><button type="button" data-value="cancel" class="btn ghost">Abbrechen</button></div>`);
   const d = $('#dlg');
   const state = d.querySelector('#wizState'), saveBtn = d.querySelector('[data-value=save]'), pick = d.querySelector('#wizFiles');
+  const passBox = d.querySelector('#wizPass'), passIn = d.querySelector('#wizPassIn'), passBtn = d.querySelector('#wizPassBtn');
   const prep = () => {
     saveBtn.disabled = true; saveBtn.textContent = 'Wird vorbereitet …'; blob = null;
     const mine = blobP;
-    mine.then((b) => { if (mine !== blobP) return; blob = b; saveBtn.disabled = false; saveBtn.textContent = '💾 Meine Datei sichern'; });
+    mine.then(async (b) => {
+      if (mine !== blobP) return;
+      fname = await ownSyncName();
+      d.querySelector('#wizName').textContent = fname;
+      blob = b; saveBtn.disabled = false; saveBtn.textContent = '💾 Meine Datei sichern';
+    });
   };
   prep();
+  // Dateien einlesen; Verschlüsselte ohne (richtiges) Passwort merken wir uns für die Passwort-Eingabe
+  const readFiles = async (files) => {
+    const total = { added: 0, updated: 0, deleted: 0, folders: 0 };
+    let bad = 0;
+    const again = [];
+    for (const f of files) {
+      try { const st = await mergeSyncFile(f); for (const k of Object.keys(total)) total[k] += st[k]; } catch (e) {
+        if (e.code === 'NEED_PASS' || e.code === 'WRONG_PASS') again.push(f); else bad++;
+      }
+    }
+    return { total, bad, again };
+  };
+  const report = (n, r) => {
+    locked = r.again;
+    passBox.hidden = !locked.length;
+    const lockedNote = locked.length ? ` ${plural(locked.length, 'Datei ist', 'Dateien sind')} verschlüsselt: Passwort eingeben.` : '';
+    state.textContent = `✓ ${plural(n, 'Datei', 'Dateien')} gelesen: ${r.total.added} neu, ${r.total.updated} aktualisiert, ${r.total.deleted} gelöscht${r.bad ? `, ${r.bad} nicht lesbar` : ''}.${lockedNote}`;
+    build(); prep();
+    if (r.total.added + r.total.updated + r.total.deleted + r.total.folders) refreshIfIdle();
+  };
   pick.onchange = async () => {
     const files = [...pick.files];
     if (!files.length) return;
     state.textContent = 'Wird eingelesen …';
     saveBtn.disabled = true;
-    const total = { added: 0, updated: 0, deleted: 0, folders: 0 };
-    let bad = 0;
-    for (const f of files) {
-      try { const st = await mergeSyncFile(f); for (const k of Object.keys(total)) total[k] += st[k]; } catch { bad++; }
+    report(files.length, await readFiles(files));
+  };
+  passBtn.onclick = async () => {
+    const p = passIn.value;
+    if (p.length < 8) { state.textContent = 'Das Passwort hat mindestens 8 Zeichen.'; return; }
+    const before = await getSetting('syncPass', '');
+    saveBtn.disabled = true;
+    state.textContent = 'Wird geprüft …';
+    await setPassphrase(p);
+    const r = await readFiles(locked);
+    if (r.again.length === locked.length) {
+      await setSetting('syncPass', before);
+      await setSetting('encDirty', false);
+      state.textContent = 'Das Passwort stimmt nicht.';
+      build(); prep();
+      return;
     }
-    const got = total.added + total.updated + total.deleted + total.folders;
-    state.textContent = `✓ ${files.length} Datei${files.length === 1 ? '' : 'en'} gelesen: ${total.added} neu, ${total.updated} aktualisiert, ${total.deleted} gelöscht${bad ? `, ${bad} nicht lesbar` : ''}.`;
-    build(); prep();
-    if (got) refreshIfIdle();
+    passIn.value = '';
+    report(locked.length - r.again.length, r);
   };
   if ((await res) !== 'save' || !blob) return;
   const done = await shareOrDownload(blob, fname, 'Steuerordner Sync-Datei');
   if (done) {
     await setSetting('lastSync', t0);
+    await setSetting('encDirty', false);
     toast(`✓ «${fname}» gesichert. Die anderen lesen sie beim nächsten Abgleich ein.`, 5000);
   }
 }
@@ -654,7 +803,14 @@ async function mergeSyncFiles(files) {
 
 async function mergeSyncFile(file) {
   {
-    const entries = await readZip(await file.arrayBuffer());
+    let buf = await file.arrayBuffer();
+    const head = new Uint8Array(buf);
+    if (isEncrypted(head)) {
+      const pass = await getSetting('syncPass', '');
+      if (!pass) throw encError('NEED_PASS', 'Die Datei ist verschlüsselt. Es fehlt das Passwort.');
+      buf = await decryptBytes(head, pass);
+    }
+    const entries = await readZip(buf);
     const mf = entries.find((e) => e.name === 'manifest.json');
     if (!mf) throw new Error('Keine Steuerordner-Sync-Datei (manifest.json fehlt).');
     const manifest = JSON.parse(new TextDecoder().decode(mf.data));
@@ -895,6 +1051,7 @@ async function renderHome() {
   const cl = await checklistState(year);
   const clOpen = cl ? cl.items.filter((i) => !i.done) : [];
   const storage = await getSetting('storage', '');
+  const enc = await encOn();
   const dirName = canWriteFolder() ? await getSetting('syncDirName', '') : '';
   let live = false;
   if (dirName) { try { live = await (await getSetting('syncDir', null)).queryPermission({ mode: 'readwrite' }) === 'granted'; } catch { live = false; } }
@@ -923,7 +1080,8 @@ async function renderHome() {
     </section>`}
     ${storage ? `<section class="savecard ${!sync || sync.n ? 'pending' : ''}">
       <button class="btn ${!sync || sync.n ? 'primary' : ''} big wide" data-action="autoSave">💾 Jetzt speichern</button>
-      <p class="muted small">${sync ? `Zuletzt gespeichert: ${new Date(sync.last).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' })}${sync.n ? ` · ${sync.n} Änderung${sync.n === 1 ? '' : 'en'} noch nicht gesichert` : ' · alles gesichert ✓'}` : 'Noch nie gespeichert.'} ${canWriteFolder() ? (dirName ? `Ordner «${esc(dirName)}»${live ? ': wird automatisch abgeglichen ✓' : ': tippe auf den Knopf, um den automatischen Abgleich zu starten.'}` : 'Beim ersten Mal wählst du den Ordner aus.') : 'Eine kurze Anleitung führt dich durch den Abgleich.'}</p>
+      <p class="muted small">${sync ? `Zuletzt gespeichert: ${new Date(sync.last).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' })}${sync.n ? ` · ${sync.n} Änderung${sync.n === 1 ? '' : 'en'} noch nicht gesichert` : ' · alles gesichert ✓'}` : 'Noch nie gespeichert.'} ${canWriteFolder() ? (dirName ? `Ordner «${esc(dirName)}»${live ? ': wird automatisch abgeglichen ✓' : ': tippe auf den Knopf, um den automatischen Abgleich zu starten.'}` : 'Beim ersten Mal wählst du den Ordner aus.') : 'Eine kurze Anleitung führt dich durch den Abgleich.'}${enc ? ' 🔒 Verschlüsselt.' : ''}</p>
+      ${enc ? '' : '<a class="storeline" href="#/settings">🔒 Dateien verschlüsseln (empfohlen) ›</a>'}
     </section>` : ''}
     ${first ? `<section class="tipcard"><strong>So fängst du an</strong><ol>
       <li>Tippe unten auf <b>Beleg scannen</b>.</li>
@@ -1177,6 +1335,8 @@ async function renderSettings() {
   const userName = await getSetting('userName', '');
   const storage = await getSetting('storage', '');
   const dirName = await getSetting('syncDirName', '');
+  const enc = await encOn();
+  const haveKey = !!(await getSetting('syncPass', ''));
   let storageInfo = '';
   if (navigator.storage && navigator.storage.estimate) {
     const e = await navigator.storage.estimate();
@@ -1225,6 +1385,11 @@ async function renderSettings() {
       </div>
       ${canWriteFolder() && storage ? `<p class="muted">Ordner für «Jetzt speichern»: ${dirName ? `<strong>${esc(dirName)}</strong>` : 'noch nicht gewählt'} <button class="linkbtn inline" data-action="pickDir">${dirName ? 'ändern' : 'jetzt wählen'}</button></p>` : ''}
       <p class="muted">${sync ? `Letzter Abgleich: ${new Date(sync.last).toLocaleString('de-CH')}${sync.n ? ` · ${sync.n} Änderung(en) seither` : ''}` : 'Noch kein Abgleich durchgeführt.'} Die Datei ist zugleich deine Sicherung.</p>
+
+      <h3>Verschlüsselung</h3>
+      <p>${enc ? '🔒 <strong>Eingeschaltet.</strong> Die Sync-Dateien sind mit deinem Passwort verschlüsselt (AES-256). Alle in der Familie brauchen dasselbe Passwort.' : `🔓 <strong>Aus.</strong> Deine Sync-Datei im gemeinsamen Ordner kann jeder lesen, der Zugriff auf den Ordner hat, zum Beispiel der Cloud-Anbieter.${haveKey ? ' Verschlüsselte Dateien der anderen liest die App weiter mit dem gespeicherten Passwort.' : ''}`}</p>
+      <div class="row">${enc ? '<button class="btn" data-action="encChange">Passwort ändern</button><button class="btn" data-action="encOff">Ausschalten</button>' : '<button class="btn primary" data-action="encOn">🔒 Verschlüsselung einschalten</button>'}</div>
+      <p class="muted small">Das Passwort bleibt nur auf diesem Gerät gespeichert, damit sich die App von selbst abgleichen kann. Wer das Passwort vergisst, kann die Dateien im Ordner nicht mehr öffnen. Deine Belege in der App bleiben erhalten.</p>
 
       <h3>Hilfe</h3>
       <div class="row">
@@ -1275,6 +1440,29 @@ async function renderSettings() {
     } else if (a === 'exportOpen') await exportYearZip(year, true);
     else if (a === 'exportAll') await exportYearZip(year, false);
     else if (a === 'autoSave') await autoSave();
+    else if (a === 'encOn' && (await getSetting('syncPass', ''))) {
+      await setSetting('syncEncOff', false);
+      await setSetting('encDirty', true);
+      toast('Die Verschlüsselung ist wieder eingeschaltet. Beim nächsten Abgleich wird deine Datei neu geschrieben.', 5500);
+      render();
+    }
+    else if (a === 'encOn' || a === 'encChange') {
+      const p = await passDlg({ title: a === 'encOn' ? 'Passwort festlegen' : 'Neues Passwort', note: PASS_NOTE, confirm: true });
+      if (p) {
+        await setPassphrase(p);
+        await setSetting('encAsked', true);
+        toast('Die Verschlüsselung ist eingeschaltet. Beim nächsten Abgleich wird deine Datei neu geschrieben.', 5500);
+        render();
+      }
+    }
+    else if (a === 'encOff') {
+      if (await confirmDlg('Verschlüsselung ausschalten?', 'Deine Datei im Ordner ist danach wieder für alle lesbar, die Zugriff auf den Ordner haben. Verschlüsselte Dateien der anderen liest die App weiter.', 'Ausschalten')) {
+        await setSetting('syncEncOff', true);
+        await setSetting('encDirty', true);
+        toast('Die Verschlüsselung ist ausgeschaltet. Beim nächsten Abgleich wird deine Datei wieder lesbar geschrieben.', 5500);
+        render();
+      }
+    }
     else if (a === 'pickDir') {
       try { if (await pickSyncFolder(storage)) { toast('Ordner gewählt.'); render(); } } catch (err) { if (err.name !== 'AbortError') toast('Fehler: ' + err.message, 5000); }
     }
@@ -1424,6 +1612,9 @@ async function renderHelp() {
       </details>
       <details><summary>Wozu soll ich Beträge eintragen?</summary>
         <p>Im Portal musst du meist Zahlen eintippen, nicht nur Dateien hochladen. Trage bei jedem Beleg den Betrag ein. Unter <strong>Zahlen fürs Portal</strong> siehst du dann alles auf einer Seite und kannst es ausdrucken.</p>
+      </details>
+      <details><summary>Was bringt das Passwort für die Sync-Dateien?</summary>
+        <p>Die Dateien im gemeinsamen Ordner enthalten deine Belege. Mit Passwort sind sie verschlüsselt: Wer Zugriff auf den Ordner hat, zum Beispiel der Cloud-Anbieter, sieht nur unlesbare Daten. Alle in der Familie geben dasselbe Passwort ein. Du stellst es unter Einstellungen bei «Verschlüsselung» ein. Vergisst du es, lassen sich die Dateien im Ordner nicht mehr öffnen, deine Belege in der App bleiben aber erhalten.</p>
       </details>
       <details><summary>Was ist das Steuerjahr?</summary>
         <p>Das Jahr, für das du die Steuererklärung ausfüllst, zum Beispiel 2025. Du wählst es oben auf der Startseite. Für jedes Jahr gibt es eigene Ordner.</p>
@@ -1629,7 +1820,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.8.0';
+const APP_VERSION = '1.9.0';
 async function render(keepScroll = false) {
   const scrollY = window.scrollY;
   revokeUrls();

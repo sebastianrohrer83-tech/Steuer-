@@ -12,8 +12,8 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=1.8.0">
-  <link rel="stylesheet" href="./ui.css?v=1.8.0">
+  <link rel="stylesheet" href="./styles.css?v=1.9.0">
+  <link rel="stylesheet" href="./ui.css?v=1.9.0">
 </head>
 <body>
   <header class="topbar">
@@ -25,13 +25,13 @@
 
   <input type="file" id="camInput" accept="image/*" capture="environment" hidden>
   <input type="file" id="galInput" accept="image/*,application/pdf,.pdf" multiple hidden>
-  <input type="file" id="zipInput" accept=".zip,application/zip" multiple hidden>
+  <input type="file" id="zipInput" multiple hidden>
 
   <div id="toast" role="status"></div>
   <div id="busy"><div class="spinner"></div><span>Bitte warten …</span></div>
   <dialog id="dlg"></dialog>
 
-  <script type="module" src="./app.js?v=1.8.0"></script>
-  <script type="module" src="./install.js?v=1.8.0"></script>
+  <script type="module" src="./app.js?v=1.9.0"></script>
+  <script type="module" src="./install.js?v=1.9.0"></script>
 </body>
 </html>
