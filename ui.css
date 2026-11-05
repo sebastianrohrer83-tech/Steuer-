@@ -97,3 +97,36 @@ ol.bigsteps li { margin: 8px 0; color: var(--text); font-size: 1rem; }
 .savecard p { margin: 8px 0 0; }
 .linkbtn.inline { display: inline; width: auto; margin: 0; padding: 0 4px; border: 0; font-size: inherit; text-decoration: underline; }
 .btn.filebtn { display: flex; align-items: center; justify-content: center; cursor: pointer; width: 100%; box-sizing: border-box; }
+
+/* Checkliste, Beträge, Zahlenübersicht */
+.bar { height: 10px; border-radius: 6px; background: var(--line); overflow: hidden; margin: 8px 0 6px; }
+.bar > i { display: block; height: 100%; background: var(--ok); border-radius: 6px; transition: width .3s; }
+.clcard { margin: 0 0 14px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
+.clcard .clmain { display: block; color: inherit; text-decoration: none; }
+.clcard small { color: var(--muted); }
+.clcard .storeline { margin: 10px 0 0; }
+.clcard .btn { margin-top: 6px; }
+.cl { list-style: none; margin: 0 0 6px; padding: 0; }
+.clitem { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.clhead { display: flex; gap: 10px; align-items: flex-start; }
+.clmark { width: 28px; height: 28px; flex: none; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--line); color: var(--muted); font-weight: 700; }
+.clitem.have .clmark { background: var(--ok); color: #fff; }
+.clitem.na { opacity: .65; }
+.cltext { display: flex; flex-direction: column; }
+.cltext small { color: var(--muted); font-weight: 400; }
+.clactions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0 38px; }
+.popt { cursor: pointer; }
+.popt input { width: 22px; height: 22px; flex: none; }
+.popt:has(input:checked) { border-color: var(--primary); background: #eef4ff; }
+@media (prefers-color-scheme: dark) { .popt:has(input:checked) { background: #1c2b4d; } }
+.sumtab { width: 100%; border-collapse: collapse; margin: 4px 0 8px; }
+.sumtab td { padding: 8px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.sumtab td small { display: block; color: var(--muted); font-size: .8rem; }
+.sumtab .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; padding-left: 10px; }
+.sumtab .tot td { font-weight: 700; border-bottom: 2px solid var(--line); }
+.printonly { display: none; }
+@media print {
+  .topbar, .bottombar, .noprint, #toast, #busy, .iconbtn { display: none !important; }
+  .printonly { display: block; }
+  body { background: #fff; color: #000; }
+}

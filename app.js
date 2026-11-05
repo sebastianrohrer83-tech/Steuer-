@@ -25,6 +25,46 @@ const shortOf = (f) => (DEFAULT_BY_KEY[f.builtin] && DEFAULT_BY_KEY[f.builtin].s
 const examplesOf = (f) => (DEFAULT_BY_KEY[f.builtin] && DEFAULT_BY_KEY[f.builtin].examples) || [];
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
+// Persönliche Checkliste: allgemeine Orientierung (typische Unterlagen in der Schweiz), keine Steuerberatung.
+// need: trifft zu, wenn eine dieser Angaben gewählt ist; leer = für alle. opt: nur falls vorhanden.
+const PROFILE_QUESTIONS = [
+  ['angestellt', 'Ich bin angestellt', 'Du bekommst einen Lohnausweis.'],
+  ['selbstaendig', 'Ich bin selbständig erwerbend', 'Eigene Firma, Praxis oder freiberuflich.'],
+  ['rente', 'Ich beziehe eine Rente', 'AHV, IV oder Pensionskasse.'],
+  ['wertschriften', 'Ich habe Wertschriften', 'Aktien, Fonds, Kryptowährungen oder ein Depot.'],
+  ['saeule3a', 'Ich zahle in die Säule 3a ein', 'Private Vorsorge bei einer Bank oder Versicherung.'],
+  ['eigentum', 'Ich besitze Wohneigentum', 'Haus oder Wohnung, meist mit Hypothek.'],
+  ['kinder', 'Ich habe Kinder', 'Betreuung, Ausbildung oder Unterstützung.'],
+];
+const CHECKLIST = [
+  { key: 'lohnausweis', folder: 'einkommen', need: ['angestellt'], short: 'Lohnausweis', title: 'Lohnausweis', hint: 'Vom Arbeitgeber, meist im Januar. Bei mehreren Arbeitgebern je einer.', amount: 'Nettolohn (Ziffer 11 auf dem Lohnausweis)' },
+  { key: 'taggeld', folder: 'einkommen', need: ['angestellt'], opt: true, short: 'Taggeld', title: 'Taggelder (Arbeitslosen-, Kranken-, Unfalltaggeld)', hint: 'Nur falls du im Jahr welche erhalten hast.', amount: 'Total des Jahres' },
+  { key: 'rente_ahv', folder: 'einkommen', need: ['rente'], short: 'AHV-/IV-Rente', title: 'Bescheinigung AHV-/IV-Rente', hint: 'Die Ausgleichskasse schickt sie meist im Januar.', amount: 'Jahresrente' },
+  { key: 'rente_pk', folder: 'einkommen', need: ['rente'], opt: true, short: 'Rente Pensionskasse', title: 'Bescheinigung Rente der Pensionskasse', hint: 'Nur falls du eine Pensionskassenrente bekommst.', amount: 'Jahresrente' },
+  { key: 'selbst_abschluss', folder: 'einkommen', need: ['selbstaendig'], short: 'Jahresrechnung', title: 'Jahresrechnung (Erfolgsrechnung und Bilanz)', hint: 'Von dir oder deiner Buchhaltung.', amount: 'Reingewinn' },
+  { key: 'konto', folder: 'wertschriften', need: [], short: 'Kontoauszug 31.12.', title: 'Kontoauszüge per 31.12. (alle Konten)', hint: 'Saldo und Zins am 31. Dezember. Viele Banken haben dafür einen «Steuerauszug» oder «Zinsausweis».', amount: 'Saldo per 31.12. und Zins' },
+  { key: 'depot', folder: 'wertschriften', need: ['wertschriften'], short: 'Steuerauszug Depot', title: 'Steuerauszug oder Depotauszug', hint: 'Die Bank erstellt ihn, oft als «eSteuerauszug».', amount: 'Gesamtwert per 31.12.' },
+  { key: 'oev', folder: 'berufsauslagen', need: ['angestellt'], opt: true, short: 'ÖV-Abo', title: 'ÖV-Abo oder Fahrkosten zur Arbeit', hint: 'Nur falls du mit dem ÖV zur Arbeit fährst.', amount: 'Kosten im Jahr' },
+  { key: 'weiterbildung', folder: 'berufsauslagen', need: ['angestellt', 'selbstaendig'], opt: true, short: 'Weiterbildung', title: 'Weiterbildungskosten (Kurse, Prüfungen)', hint: 'Nur falls du Kosten hattest.', amount: 'Kosten im Jahr' },
+  { key: 's3a', folder: 'vorsorge', need: ['saeule3a'], short: 'Säule 3a', title: 'Säule-3a-Bescheinigung', hint: 'Von der Bank oder Versicherung, meist im Januar.', amount: 'Einzahlung im Jahr' },
+  { key: 'pk_einkauf', folder: 'vorsorge', need: ['angestellt', 'selbstaendig'], opt: true, short: 'Einkauf Pensionskasse', title: 'Einkauf in die Pensionskasse', hint: 'Nur falls du freiwillig eingekauft hast.', amount: 'Einkaufssumme' },
+  { key: 'kk_praemien', folder: 'krankenkasse', need: [], short: 'Prämienübersicht', title: 'Prämienübersicht der Krankenkasse', hint: 'Die Krankenkasse schickt eine Jahresübersicht.', amount: 'Prämien im Jahr' },
+  { key: 'kk_selbst', folder: 'krankenkasse', need: [], opt: true, short: 'Arztrechnungen', title: 'Arzt-, Zahnarzt- und Spitalrechnungen (selbst bezahlt)', hint: 'Nur was du selbst bezahlt hast.', amount: 'Selbst bezahlter Betrag' },
+  { key: 'hypo', folder: 'liegenschaft', need: ['eigentum'], short: 'Hypothekarzins', title: 'Hypothekarzins-Bescheinigung', hint: 'Von der Bank, meist im Januar.', amount: 'Schuldzins und Hypothek per 31.12.' },
+  { key: 'unterhalt', folder: 'liegenschaft', need: ['eigentum'], opt: true, short: 'Unterhalt', title: 'Rechnungen für Unterhalt und Reparaturen', hint: 'Nur falls du am Haus oder an der Wohnung etwas machen liessest.', amount: 'Total Unterhalt' },
+  { key: 'schuldzins', folder: 'schulden', need: [], opt: true, short: 'Schuldzinsen', title: 'Schuldzinsen (Kredit, Leasing, Kreditkarte)', hint: 'Nur falls du Schulden ausser der Hypothek hast.', amount: 'Zinsen im Jahr' },
+  { key: 'kita', folder: 'familie', need: ['kinder'], opt: true, short: 'Kinderbetreuung', title: 'Kinderbetreuung (Kita, Tagesfamilie)', hint: 'Nur falls du Betreuung selbst bezahlt hast.', amount: 'Kosten im Jahr' },
+  { key: 'ausbildung', folder: 'familie', need: ['kinder'], opt: true, short: 'Ausbildung Kinder', title: 'Ausbildungskosten der Kinder', hint: 'Nur falls du solche Kosten hattest.', amount: 'Kosten im Jahr' },
+  { key: 'spenden', folder: 'spenden', need: [], opt: true, short: 'Spenden', title: 'Spendenbescheinigungen', hint: 'Nur falls du gespendet hast.', amount: 'Total Spenden' },
+  { key: 'veranlagung', folder: 'steuern', need: [], opt: true, short: 'Veranlagung Vorjahr', title: 'Veranlagungsverfügung des Vorjahres', hint: 'Hilft beim Vergleich mit dem letzten Jahr.', amount: '' },
+];
+function profileFormHtml(p = {}) {
+  return `<div class="opts profile">${PROFILE_QUESTIONS.map(([k, t, sub]) => `
+    <label class="opt popt"><input type="checkbox" name="p" value="${k}" ${p[k] ? 'checked' : ''}><span class="opt-t"><strong>${t}</strong><small>${sub}</small></span></label>`).join('')}</div>`;
+}
+const readProfile = (root) => Object.fromEntries([...root.querySelectorAll('input[name=p]')].map((i) => [i.value, i.checked]));
+const itemApplies = (it, p) => !it.need.length || it.need.some((k) => p[k]);
+
 const STORAGES = {
   local: { icon: '👤', label: 'Nur ich', short: 'Nur dieses Handy', text: 'Die Belege liegen nur auf diesem Handy. Ich sichere sie ab und zu selbst.' },
   icloud: { icon: '☁️', label: 'Familie mit iCloud Drive', short: 'Familie über iCloud Drive', text: 'Alle teilen einen Ordner in iCloud Drive.' },
@@ -198,7 +238,8 @@ const folderKey = (id) => 'f:' + id; // Löschmarken für Ordner und Jahre: «f:
 
 async function ensureYear(year) {
   if (!(await db.get('years', year))) {
-    await db.put('years', { year, createdAt: Date.now() });
+    const prev = (await db.getAll('years')).filter((y) => y.profile).sort((a, b) => b.year - a.year)[0];
+    await db.put('years', { year, createdAt: Date.now(), ...(prev ? { profile: prev.profile, profileAt: Date.now() } : {}) });
     await clearTombstones(['y:' + year]);
     await createDefaultFolders(year);
   }
@@ -223,6 +264,54 @@ async function docsOf(folderId) {
 function docSize(d) {
   if (d.kind === 'pdf') return d.file ? d.file.size : 0;
   return (d.pages || []).reduce((s, p) => s + (p.blob ? p.blob.size : 0), 0);
+}
+
+// Checkliste und Beträge. Angaben und Haken liegen im Jahres-Eintrag und werden mit der Familie abgeglichen.
+const getYearRec = async (year) => (await db.get('years', year)) || { year, createdAt: Date.now() };
+async function setProfile(year, profile) {
+  const y = await getYearRec(year);
+  y.profile = profile;
+  y.profileAt = Date.now();
+  await db.put('years', y);
+}
+async function setCheck(year, key, st) {
+  const y = await getYearRec(year);
+  y.checks = { ...(y.checks || {}), [key]: { s: st, at: Date.now() } };
+  await db.put('years', y);
+}
+async function checklistState(year) {
+  const y = await db.get('years', year);
+  if (!y || !y.profile) return null;
+  const docs = await db.getAllBy('docs', 'year', year);
+  const countBy = {};
+  for (const d of docs) if (d.item) countBy[d.item] = (countBy[d.item] || 0) + 1;
+  const items = CHECKLIST.filter((it) => itemApplies(it, y.profile)).map((it) => {
+    const na = !!(y.checks && y.checks[it.key] && y.checks[it.key].s === 'na');
+    const n = countBy[it.key] || 0;
+    return { ...it, n, na, done: n > 0 || na };
+  });
+  return { profile: y.profile, items, done: items.filter((i) => i.done).length, total: items.length };
+}
+function parseAmount(v) {
+  let t = String(v || '').replace(/[’'\s]/g, '');
+  if (t.includes(',') && t.includes('.')) t = t.replace(/\./g, '');
+  t = t.replace(',', '.');
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
+}
+const fmtChf = (n) => Number(n).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+async function editProfile(year) {
+  const y = await db.get('years', year);
+  const cur = { ...((y && y.profile) || {}) };
+  const res = dialog(`<h2>Was trifft auf dich zu?</h2>
+    <p class="muted small">Daraus erstellt die App deine Checkliste.</p>
+    ${profileFormHtml(cur)}
+    <div class="dlg-actions"><button type="button" data-value="cancel" class="btn">Abbrechen</button><button type="submit" class="btn primary">Speichern</button></div>`);
+  $('#dlg form').addEventListener('change', (e) => { if (e.target.name === 'p') cur[e.target.value] = e.target.checked; });
+  if (!(await res)) return false;
+  await setProfile(year, cur);
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -471,7 +560,7 @@ async function saveToFolder(storage) {
 function refreshIfIdle() {
   const p = (location.hash.slice(1) || '/').split('/').filter(Boolean)[0];
   const sc = document.getElementById('scanner');
-  if ($('#dlg').open || (sc && sc.classList.contains('show')) || !['f', 'upload', undefined].includes(p)) return;
+  if ($('#dlg').open || (sc && sc.classList.contains('show')) || !['f', 'upload', 'checklist', undefined].includes(p)) return;
   render(true);
 }
 async function quietSync() {
@@ -559,7 +648,7 @@ async function mergeSyncFiles(files) {
       const st = await mergeSyncFile(file);
       for (const k of Object.keys(total)) total[k] += st[k];
     }
-    toast(`Abgleich fertig (${files.length} Datei${files.length === 1 ? '' : 'en'}): ${total.added} neu, ${total.updated} aktualisiert, ${total.deleted} gelöscht${total.folders ? `, ${total.folders} Ordner` : ''}.`, 5000);
+    toast(`Abgleich fertig (${files.length} Datei${files.length === 1 ? '' : 'en'}): ${total.added} neu, ${total.updated} aktualisiert, ${total.deleted} gelöscht${total.folders ? `, ${total.folders} bei Ordnern oder Checkliste` : ''}.`, 5000);
   } finally { busy(false); }
 }
 
@@ -578,7 +667,15 @@ async function mergeSyncFile(file) {
 
     for (const y of manifest.years || []) {
       if (localTomb['y:' + y.year] && localTomb['y:' + y.year] >= (y.createdAt || 0)) continue; // Jahr hier gelöscht
-      if (!(await db.get('years', y.year))) await db.put('years', y);
+      const local = await db.get('years', y.year);
+      if (!local) { await db.put('years', y); continue; }
+      let changed = false;
+      if ((y.profileAt || 0) > (local.profileAt || 0)) { local.profile = y.profile; local.profileAt = y.profileAt; changed = true; }
+      for (const [k, c] of Object.entries(y.checks || {})) {
+        const lc = local.checks && local.checks[k];
+        if (!lc || c.at > lc.at) { local.checks = { ...(local.checks || {}), [k]: c }; changed = true; }
+      }
+      if (changed) { await db.put('years', local); stats.folders++; }
     }
 
     const localFolders = await db.getAll('folders');
@@ -662,7 +759,8 @@ async function changesSinceSync() {
   const docs = await db.getAll('docs');
   const t = await getTombstones();
   const folders = await db.getAll('folders');
-  const n = docs.filter((d) => (d.updatedAt || d.createdAt) > last).length + folders.filter((f) => (f.updatedAt || 0) > last).length + Object.values(t).filter((x) => x > last).length;
+  const years = (await db.getAll('years')).filter((y) => (y.profileAt || 0) > last || Object.values(y.checks || {}).some((c) => c.at > last)).length;
+  const n = docs.filter((d) => (d.updatedAt || d.createdAt) > last).length + folders.filter((f) => (f.updatedAt || 0) > last).length + years + Object.values(t).filter((x) => x > last).length;
   return { last, n };
 }
 
@@ -713,18 +811,18 @@ async function collectPhotoPages(files) {
   return imgs.length ? reviewFiles(imgs, { mode: await getScanMode() }) : null;
 }
 
-async function addDocuments(folder, year, pages, pdfs) {
+async function addDocuments(folder, year, pages, pdfs, item = null) {
   const created = [];
   const author = await getSetting('userName', '');
   busy(true, 'Wird abgelegt …');
   try {
     if (pages && pages.length) {
-      const doc = { id: uid(), folderId: folder.id, year, title: `Beleg vom ${fmtDate(Date.now())}`, kind: 'images', pages, note: '', author, uploaded: false, createdAt: Date.now(), updatedAt: Date.now() };
+      const doc = { id: uid(), folderId: folder.id, year, title: item ? item.short : `Beleg vom ${fmtDate(Date.now())}`, kind: 'images', pages, note: '', author, ...(item ? { item: item.key } : {}), uploaded: false, createdAt: Date.now(), updatedAt: Date.now() };
       await db.put('docs', doc);
       created.push(doc);
     }
     for (const f of pdfs) {
-      const doc = { id: uid(), folderId: folder.id, year, title: f.name.replace(/\.pdf$/i, ''), kind: 'pdf', file: new Blob([await f.arrayBuffer()], { type: 'application/pdf' }), note: '', author, uploaded: false, createdAt: Date.now(), updatedAt: Date.now() };
+      const doc = { id: uid(), folderId: folder.id, year, title: f.name.replace(/\.pdf$/i, ''), kind: 'pdf', file: new Blob([await f.arrayBuffer()], { type: 'application/pdf' }), note: '', author, ...(item ? { item: item.key } : {}), uploaded: false, createdAt: Date.now(), updatedAt: Date.now() };
       await db.put('docs', doc);
       created.push(doc);
     }
@@ -753,7 +851,7 @@ async function chooseFolder(year, title = 'Wohin gehört der Beleg?') {
   return folders.find((f) => f.id === r) || null;
 }
 
-async function scanInto(folder, year, camera) {
+async function scanInto(folder, year, camera, item = null) {
   let pages = null, pdfs = [];
   if (camera) {
     pages = await collectCameraPages();
@@ -766,7 +864,7 @@ async function scanInto(folder, year, camera) {
     pages = await collectPhotoPages(files);
     if (!pages && !pdfs.length) return;
   }
-  const created = await addDocuments(folder, year, pages, pdfs);
+  const created = await addDocuments(folder, year, pages, pdfs, item);
   if (created.length === 1) location.hash = `#/d/${created[0].id}?new=1`;
   else if (created.length) { toast(`${created.length} Dokumente abgelegt.`); location.hash = `#/f/${folder.id}`; }
 }
@@ -794,6 +892,8 @@ async function renderHome() {
   const first = docs.length === 0;
   const allUp = docs.length > 0 && uploaded === docs.length;
   const sync = await changesSinceSync();
+  const cl = await checklistState(year);
+  const clOpen = cl ? cl.items.filter((i) => !i.done) : [];
   const storage = await getSetting('storage', '');
   const dirName = canWriteFolder() ? await getSetting('syncDirName', '') : '';
   let live = false;
@@ -811,6 +911,16 @@ async function renderHome() {
         <li class="${allUp ? 'done' : (first ? '' : 'now')}"><b>${allUp ? '✓' : '2'}</b><span>Belege hochladen<small>${uploaded} von ${docs.length} hochgeladen</small></span></li>
       </ol>
     </section>
+    ${cl ? `<section class="clcard">
+      <a class="clmain" href="#/checklist"><strong>Checkliste: ${cl.done} von ${cl.total} erledigt</strong>
+        <div class="bar"><i style="width:${cl.total ? Math.round(100 * cl.done / cl.total) : 0}%"></i></div>
+        <small>${clOpen.length ? `Noch offen: ${clOpen.slice(0, 3).map((i) => esc(i.short)).join(', ')}${clOpen.length > 3 ? ' …' : ''}` : 'Alles erledigt ✓'}</small></a>
+      <a class="storeline" href="#/summary">🧾 Zahlen fürs Portal ›</a>
+    </section>` : `<section class="clcard">
+      <strong>Welche Belege brauchst du?</strong>
+      <p class="muted small">Sieben kurze Fragen, dann erstellt die App deine persönliche Checkliste.</p>
+      <a class="btn primary" href="#/checklist">📝 Checkliste einrichten</a>
+    </section>`}
     ${storage ? `<section class="savecard ${!sync || sync.n ? 'pending' : ''}">
       <button class="btn ${!sync || sync.n ? 'primary' : ''} big wide" data-action="autoSave">💾 Jetzt speichern</button>
       <p class="muted small">${sync ? `Zuletzt gespeichert: ${new Date(sync.last).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' })}${sync.n ? ` · ${sync.n} Änderung${sync.n === 1 ? '' : 'en'} noch nicht gesichert` : ' · alles gesichert ✓'}` : 'Noch nie gespeichert.'} ${canWriteFolder() ? (dirName ? `Ordner «${esc(dirName)}»${live ? ': wird automatisch abgeglichen ✓' : ': tippe auf den Knopf, um den automatischen Abgleich zu starten.'}` : 'Beim ersten Mal wählst du den Ordner aus.') : 'Eine kurze Anleitung führt dich durch den Abgleich.'}</p>
@@ -877,7 +987,7 @@ async function renderFolder(folderId) {
         <div class="thumb">${d.kind === 'pdf' ? '<span class="pdfbadge">PDF</span>' : (d.pages[0] ? `<img src="${blobUrl(d.pages[0].blob)}" alt="">` : '')}</div>
         <div class="docmeta">
           <div class="doctitle">${esc(d.title)}</div>
-          <div class="docsub">${fmtDate(d.createdAt)} · ${d.kind === 'pdf' ? 'PDF' : d.pages.length + ' Seite' + (d.pages.length === 1 ? '' : 'n')} · ${fmtBytes(docSize(d))}${d.author ? ' · von ' + esc(d.author) : ''}${d.note ? ' · ' + esc(d.note) : ''}</div>
+          <div class="docsub">${fmtDate(d.createdAt)} · ${d.kind === 'pdf' ? 'PDF' : d.pages.length + ' Seite' + (d.pages.length === 1 ? '' : 'n')} · ${fmtBytes(docSize(d))}${d.amount != null ? ' · CHF ' + fmtChf(d.amount) : ''}${d.author ? ' · von ' + esc(d.author) : ''}${d.note ? ' · ' + esc(d.note) : ''}</div>
         </div>
         <div class="status ${d.uploaded ? 'ok' : ''}" title="${d.uploaded ? 'hochgeladen' : 'noch nicht hochgeladen'}">${d.uploaded ? '✓' : '○'}</div>
       </a></li>`).join('')}</ul>`
@@ -939,11 +1049,14 @@ async function renderDoc(docId, params) {
   const year = doc.year;
   setHeader(folder ? folder.name : 'Dokument', { back: `#/f/${doc.folderId}`, right: `<button class="iconbtn" data-action="docMenu" aria-label="Dokument-Menü">⋯</button>` });
   const isImg = doc.kind !== 'pdf';
+  const docItem = doc.item ? CHECKLIST.find((c) => c.key === doc.item) : null;
   view().innerHTML = `
     ${params.get('new') ? '<div class="coach"><strong>Beleg gespeichert.</strong> Gib ihm jetzt einen Namen, damit du ihn später findest.</div>' : ''}
     <section class="docform">
       <label>Name des Belegs<input type="text" id="docTitle" value="${esc(doc.title)}" maxlength="100" placeholder="z. B. Lohnausweis"></label>
       ${folder && examplesOf(folder).length ? `<div><p class="fieldhint">Oder tippe auf einen Vorschlag:</p><div class="chips">${examplesOf(folder).map((t) => `<button type="button" class="chip" data-action="chip" data-t="${esc(t)}">${esc(t)}</button>`).join('')}</div></div>` : ''}
+      <label>Betrag in CHF (kannst du leer lassen)<input type="text" inputmode="decimal" id="docAmount" value="${doc.amount != null ? esc(String(doc.amount)) : ''}" maxlength="14" placeholder="z. B. 1234.50"></label>
+      ${docItem ? `<p class="fieldhint">Gehört zur Checkliste: «${esc(docItem.title)}».${docItem.amount ? ` Trage ein: ${esc(docItem.amount)}.` : ''}</p>` : ''}
       <label>Notiz (kannst du leer lassen)<input type="text" id="docNote" value="${esc(doc.note || '')}" maxlength="200" placeholder="z. B. Betrag CHF 1'234.50"></label>
       <label class="check"><input type="checkbox" id="docUploaded" ${doc.uploaded ? 'checked' : ''}> Ich habe diesen Beleg in der Online-Steuererklärung hochgeladen${doc.uploadedAt ? ` <small>(${fmtDate(doc.uploadedAt)})</small>` : ''}</label>
     </section>
@@ -976,11 +1089,13 @@ async function renderDoc(docId, params) {
     // Werte sofort merken: wer die Seite schnell verlässt, verliert den Namen sonst (Eingabefeld ist dann schon weg)
     doc.title = $('#docTitle').value.trim() || doc.title;
     doc.note = $('#docNote').value.trim();
+    doc.amount = parseAmount($('#docAmount').value);
     doc.updatedAt = Date.now();
     saveTimer = setTimeout(() => db.put('docs', doc), 150);
   };
   $('#docTitle').oninput = save;
   $('#docNote').oninput = save;
+  $('#docAmount').oninput = save;
   $('#docUploaded').onchange = async (e) => {
     doc.uploaded = e.target.checked;
     doc.uploadedAt = doc.uploaded ? Date.now() : null;
@@ -1195,11 +1310,13 @@ async function renderWelcome(params) {
       year: (await getSetting('year')) || (d.getMonth() < 6 ? d.getFullYear() - 1 : d.getFullYear()),
       again: !!params.get('again'),
     };
+    const yrec = await db.get('years', Number(welcome.year));
+    if (yrec && yrec.profile) welcome.profile = yrec.profile;
   }
   const w = welcome;
   const thisYear = new Date().getFullYear();
   setHeader('Willkommen', {});
-  const dots = [0, 1, 2, 3].map((i) => `<span class="dot ${i === w.step ? 'on' : ''}"></span>`).join('');
+  const dots = [0, 1, 2, 3, 4].map((i) => `<span class="dot ${i === w.step ? 'on' : ''}"></span>`).join('');
   let body = '';
   if (w.step === 0) {
     body = `
@@ -1231,6 +1348,13 @@ async function renderWelcome(params) {
       <div class="actions"><button class="btn" data-action="back">Zurück</button><button class="btn primary" data-action="next">Weiter</button></div>`;
   } else if (w.step === 2) {
     body = `
+      <div class="bigicon">📝</div>
+      <h2>Was trifft auf dich zu?</h2>
+      <p class="lead">Daraus erstellt die App deine persönliche Checkliste. Du siehst dann, welche Belege du brauchst. Das kannst du später ändern.</p>
+      ${profileFormHtml(w.profile || {})}
+      <div class="actions"><button class="btn" data-action="back">Zurück</button><button class="btn primary" data-action="next">Weiter</button></div>`;
+  } else if (w.step === 3) {
+    body = `
       <div class="bigicon">📍</div>
       <h2>Wo liegen deine Belege?</h2>
       <p class="lead">Deine Scans werden immer auf diesem Handy gespeichert. Hier legst du fest, ob du sie zusätzlich mit deiner Familie teilst.</p>
@@ -1253,6 +1377,7 @@ async function renderWelcome(params) {
   const finish = async () => {
     const year = Number(welcome.year);
     await ensureYear(year);
+    if (welcome.profile) await setProfile(year, welcome.profile);
     await setSetting('year', year);
     if (welcome.name) await setSetting('userName', welcome.name);
     await setSetting('storage', welcome.storage || 'local');
@@ -1269,6 +1394,7 @@ async function renderWelcome(params) {
       if (y) w.year = Number(y.value);
       if (n) w.name = n.value.trim();
     }
+    if (w.step === 2) w.profile = readProfile(view());
     if (a === 'pickStorage') { w.storage = btn.dataset.s; renderWelcome(params); }
     else if (a === 'next') { w.step++; renderWelcome(params); }
     else if (a === 'back') { w.step--; renderWelcome(params); }
@@ -1292,6 +1418,12 @@ async function renderHelp() {
       </details>
       <details><summary>Der Scan ist schief oder abgeschnitten. Was tun?</summary>
         <p>Nach dem Foto siehst du einen grünen Rahmen mit vier Punkten. Ziehe jeden Punkt mit dem Finger genau auf eine Ecke des Blattes und tippe dann auf <strong>Übernehmen</strong>. Ein dunkler Tisch und gutes Licht helfen. Mit <strong>Ganzes Bild</strong> nimmst du das ganze Foto.</p>
+      </details>
+      <details><summary>Wozu ist die Checkliste da?</summary>
+        <p>Sie zeigt dir, welche Belege du für deine Situation sammeln solltest, zum Beispiel Lohnausweis oder Säule-3a-Bescheinigung. Tippe bei einem Punkt auf <strong>Scannen</strong>. Was du nicht brauchst, setzt du auf <strong>Trifft nicht zu</strong>. Sie ist eine Orientierung, keine Steuerberatung.</p>
+      </details>
+      <details><summary>Wozu soll ich Beträge eintragen?</summary>
+        <p>Im Portal musst du meist Zahlen eintippen, nicht nur Dateien hochladen. Trage bei jedem Beleg den Betrag ein. Unter <strong>Zahlen fürs Portal</strong> siehst du dann alles auf einer Seite und kannst es ausdrucken.</p>
       </details>
       <details><summary>Was ist das Steuerjahr?</summary>
         <p>Das Jahr, für das du die Steuererklärung ausfüllst, zum Beispiel 2025. Du wählst es oben auf der Startseite. Für jedes Jahr gibt es eigene Ordner.</p>
@@ -1351,6 +1483,7 @@ async function renderUpload() {
       <a class="btn primary" href="https://mein.ar.ch" target="_blank" rel="noopener">🌐 Online-Steuererklärung öffnen</a>
       <button class="btn" data-action="zipOpen" ${all.length ? '' : 'disabled'}>⤓ Noch offene Belege als ZIP speichern</button>
       <button class="btn" data-action="zipAll" ${all.length ? '' : 'disabled'}>⤓ Alle Belege als ZIP speichern</button>
+      <a class="btn" href="#/summary">🧾 Zahlen fürs Portal</a>
     </div>
     ${all.length ? `<p><strong>${done} von ${all.length}</strong> Belegen hochgeladen.</p>` : '<div class="empty"><p>Du hast noch keine Belege gesammelt.<br>Tippe auf der Startseite auf <strong>Beleg scannen</strong>.</p><a class="btn" href="#/">Zur Startseite</a></div>'}
     ${groups.map((g) => `
@@ -1391,10 +1524,112 @@ async function renderUpload() {
   };
 }
 
+async function renderChecklist() {
+  const year = await currentYear();
+  const st = await checklistState(year);
+  const handler = async (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const a = btn.dataset.action;
+    const key = btn.dataset.k;
+    const it = key ? CHECKLIST.find((c) => c.key === key) : null;
+    if (a === 'saveProfile') { await setProfile(year, readProfile(view())); render(); }
+    else if (a === 'profile') { if (await editProfile(year)) render(); }
+    else if (a === 'na') { await setCheck(year, key, 'na'); render(true); }
+    else if (a === 'undo') { await setCheck(year, key, ''); render(true); }
+    else if ((a === 'scan' || a === 'pick') && it) {
+      let folder = await db.get('folders', builtinId(year, it.folder));
+      if (!folder) folder = await chooseFolder(year);
+      if (folder) await scanInto(folder, year, a === 'scan', it);
+    }
+  };
+  if (!st) {
+    setHeader('Checkliste', { back: '#/' });
+    view().innerHTML = `<section class="welcome">
+      <div class="bigicon">📝</div>
+      <h2>Welche Belege brauchst du?</h2>
+      <p class="lead">Beantworte kurz, was auf dich zutrifft. Daraus erstellt die App deine persönliche Checkliste.</p>
+      ${profileFormHtml({})}
+      <div class="actions"><button class="btn primary huge" data-action="saveProfile">Checkliste erstellen</button></div></section>`;
+    view().onclick = handler;
+    return;
+  }
+  setHeader('Checkliste', { back: '#/', right: '<button class="iconbtn" data-action="profile" aria-label="Angaben ändern" title="Angaben ändern">✎</button>' });
+  const pct = st.total ? Math.round(100 * st.done / st.total) : 0;
+  const groups = DEFAULT_FOLDERS.map((f) => ({ f, items: st.items.filter((i) => i.folder === f.key) })).filter((g) => g.items.length);
+  const row = (i) => `
+    <li class="clitem ${i.n ? 'have' : i.na ? 'na' : ''}">
+      <div class="clhead"><span class="clmark">${i.n ? '✓' : i.na ? '–' : '○'}</span>
+        <div class="cltext"><strong>${esc(i.title)}</strong>${i.opt ? ' <small>(falls vorhanden)</small>' : ''}
+          <small class="clhint">${i.na ? 'Trifft nicht zu.' : i.n ? `${plural(i.n, 'Beleg', 'Belege')} abgelegt.` : esc(i.hint)}</small></div></div>
+      <div class="clactions">
+        ${i.na ? `<button class="btn small" data-action="undo" data-k="${i.key}">Doch nötig</button>` : `
+        <button class="btn small ${i.n ? '' : 'primary'}" data-action="scan" data-k="${i.key}">📷 Scannen</button>
+        <button class="btn small" data-action="pick" data-k="${i.key}">🖼️ Aus Fotos</button>
+        ${i.n ? '' : `<button class="btn small" data-action="na" data-k="${i.key}">Trifft nicht zu</button>`}`}
+      </div>
+    </li>`;
+  view().innerHTML = `
+    <section class="stepcard">
+      <strong>${st.done} von ${st.total} erledigt</strong>
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      <p class="muted small">${st.done === st.total ? 'Alles erledigt. Gut gemacht.' : 'Tippe bei einem Punkt auf «Scannen». Was du nicht hast oder nicht brauchst, setzt du auf «Trifft nicht zu».'}</p>
+    </section>
+    ${groups.map((g) => `<h3 class="upfolder">${esc(g.f.icon)} ${esc(g.f.name)}</h3><ul class="cl">${g.items.map(row).join('')}</ul>`).join('')}
+    <div class="upbtns"><a class="btn" href="#/summary">🧾 Zahlen fürs Portal</a></div>
+    <p class="muted small">Die Checkliste ist eine allgemeine Orientierung und ersetzt keine Steuerberatung. Massgebend sind die Unterlagen und Vorgaben deines Kantons.</p>`;
+  view().onclick = handler;
+  $('#headerRight').onclick = handler;
+}
+
+async function renderSummary() {
+  const year = await currentYear();
+  const folders = await foldersOf(year);
+  const groups = [];
+  for (const f of folders) {
+    const list = (await docsOf(f.id)).reverse();
+    if (list.length) groups.push({ f, list });
+  }
+  const text = [`Steuerjahr ${year}: erfasste Beträge`, ''];
+  const body = groups.map((g) => {
+    const amounts = g.list.filter((d) => d.amount != null);
+    const sum = amounts.reduce((t, d) => t + d.amount, 0);
+    text.push(g.f.name);
+    const rows = g.list.map((d) => {
+      const it = d.item ? CHECKLIST.find((c) => c.key === d.item) : null;
+      text.push(`  ${d.title}: ${d.amount != null ? 'CHF ' + fmtChf(d.amount) : 'kein Betrag'}`);
+      return `<tr><td>${esc(d.title)}${it && it.amount ? `<small>Eintragen: ${esc(it.amount)}</small>` : ''}</td><td class="num">${d.amount != null ? 'CHF ' + fmtChf(d.amount) : '<span class="muted">–</span>'}</td></tr>`;
+    }).join('');
+    if (amounts.length > 1) text.push(`  Total: CHF ${fmtChf(sum)}`);
+    text.push('');
+    return `<h3 class="upfolder">${esc(g.f.icon || '📁')} ${esc(g.f.name)}</h3>
+      <table class="sumtab">${rows}${amounts.length > 1 ? `<tr class="tot"><td>Total</td><td class="num">CHF ${fmtChf(sum)}</td></tr>` : ''}</table>`;
+  }).join('');
+  setHeader('Zahlen fürs Portal', { back: '#/' });
+  view().innerHTML = `
+    <section class="upsteps noprint">
+      <strong>Deine Zahlen auf einen Blick</strong>
+      <p class="muted small">Hier stehen die Beträge, die du bei den Belegen eingetragen hast. So tippst du sie im Portal ab, ohne jeden Beleg zu öffnen. Ob und wie viel du abziehen darfst, entscheidet das Steueramt.</p>
+    </section>
+    ${groups.length ? `<h2 class="sectitle printonly">Steuerjahr ${year}</h2>${body}
+    <div class="upbtns noprint">
+      <button class="btn primary" data-action="print">🖨️ Drucken oder als PDF sichern</button>
+      <button class="btn" data-action="copy">📋 Als Text kopieren</button>
+    </div>` : '<div class="empty"><p>Noch keine Belege.<br>Lege Belege ab und trage bei jedem den Betrag ein.</p><a class="btn" href="#/">Zur Startseite</a></div>'}`;
+  view().onclick = async (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    if (btn.dataset.action === 'print') window.print();
+    else if (btn.dataset.action === 'copy') {
+      try { await navigator.clipboard.writeText(text.join('\n')); toast('Kopiert.'); } catch { toast('Kopieren geht hier nicht. Nutze «Drucken».', 4000); }
+    }
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.8.0';
 async function render(keepScroll = false) {
   const scrollY = window.scrollY;
   revokeUrls();
@@ -1409,6 +1644,8 @@ async function render(keepScroll = false) {
     if (parts[0] === 'welcome') await renderWelcome(params);
     else if (parts[0] === 'help') await renderHelp();
     else if (parts[0] === 'upload') await renderUpload();
+    else if (parts[0] === 'checklist') await renderChecklist();
+    else if (parts[0] === 'summary') await renderSummary();
     else if (parts[0] === 'f' && parts[1]) await renderFolder(parts[1]);
     else if (parts[0] === 'd' && parts[1]) await renderDoc(parts[1], params);
     else if (parts[0] === 'settings') await renderSettings();

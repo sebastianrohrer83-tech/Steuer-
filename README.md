@@ -78,6 +78,18 @@ python3 -m http.server 8080
 Dann `http://localhost:8080` öffnen. Ein `file://`-Aufruf reicht nicht, weil der Browser
 für Kamera, Service Worker und Module eine echte Web-Adresse braucht.
 
+## Checkliste und Zahlen fürs Portal
+
+- **Persönliche Checkliste:** In der Einführung (oder später auf der Startseite) beantwortest du sieben Fragen (angestellt,
+  selbständig, Rente, Wertschriften, Säule 3a, Wohneigentum, Kinder). Daraus entsteht eine Liste der Belege, die typischerweise
+  gebraucht werden. Pro Punkt: «Scannen», «Aus Fotos» oder «Trifft nicht zu». Ein so abgelegter Beleg trägt den Namen des
+  Punktes und weiss, welche Zahl einzutragen ist. Ein neues Steuerjahr übernimmt die Angaben des Vorjahres.
+- **Beträge:** Jeder Beleg hat ein optionales Feld «Betrag in CHF».
+- **Zahlen fürs Portal:** Eine Seite mit allen erfassten Beträgen pro Ordner, zum Drucken, als PDF sichern oder als Text kopieren.
+- Angaben, Haken und Beträge werden wie die Belege mit der Familie abgeglichen.
+- Die Checkliste ist eine allgemeine Orientierung (typische Unterlagen in der Schweiz) und keine Steuerberatung. Sie ist nicht
+  auf einen Kanton zugeschnitten. Fristen und Vorgaben des Kantons gehen vor.
+
 ## Gemeinsam im Haushalt (geteilter iCloud-Ordner)
 
 Die App hat keinen Server. Alle im Haushalt nutzen einen gemeinsamen Ordner in iCloud Drive:
