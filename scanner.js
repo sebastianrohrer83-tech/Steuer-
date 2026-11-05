@@ -91,7 +91,7 @@ function runReview({ canvas, corners, mode, title, retakeLabel }) {
         <button class="sc-btn" data-a="full">Ganzes Bild</button>
       </div>
       <div class="sc-stage"><canvas></canvas></div>
-      <div class="sc-hint">Ecken mit dem Finger auf die Blattecken ziehen</div>
+      <div class="sc-hint">Passt der grüne Rahmen genau um das Blatt? Dann tippe auf «Übernehmen». Sonst ziehe die Punkte auf die Blattecken.</div>
       <div class="sc-modes">${MODES.map(([m, l]) => `<button data-m="${m}" class="${m === mode ? 'on' : ''}">${l}</button>`).join('')}</div>
       <div class="sc-bottom">
         ${retakeLabel ? `<button class="sc-text" data-a="retake">${retakeLabel}</button>` : '<span></span>'}
@@ -242,7 +242,7 @@ export function scanPages({ mode = 'doc', auto = true, onAuto = () => {} } = {})
         <div class="sc-stage"><video playsinline muted autoplay></video><canvas class="sc-overlay"></canvas></div>
         <div class="sc-prog"><div></div></div>
         <div class="sc-bottom">
-          <label class="sc-auto"><input type="checkbox" ${auto ? 'checked' : ''}> Auto</label>
+          <label class="sc-auto"><input type="checkbox" ${auto ? 'checked' : ''}> Automatisch</label>
           <button class="sc-shutter" data-a="shutter" aria-label="Aufnehmen"></button>
           <button class="sc-ok" data-a="done" disabled>Fertig</button>
         </div>

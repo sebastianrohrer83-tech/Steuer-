@@ -11,6 +11,16 @@ Gemeinde Herisau).
 - Export als PDF pro Beleg oder als ZIP-Paket pro Ordner / pro Steuerjahr – bereit zum Hochladen.
 - Status «hochgeladen» pro Dokument, Fortschrittsanzeige, Backup und Wiederherstellung.
 
+## Für Einsteiger
+
+- **Einführung** beim ersten Start: drei kurze Seiten, Steuerjahr und Name. Später über «Hilfe» oder die Einstellungen nochmals aufrufbar.
+- **Startseite in zwei Schritten:** «Belege sammeln» und «Belege hochladen» mit Fortschritt. Ein grosser Knopf «Beleg scannen».
+- **Ordnerwahl als Liste** mit Erklärung, z. B. «Lohn & Einkommen: Lohnausweis, Rente, Taggelder».
+- **Namensvorschläge** pro Ordner (z. B. «Lohnausweis»), per Fingertipp übernehmbar.
+- **Scan-Tipp** vor dem ersten Scan: dunkler Tisch, ruhig halten, Rahmen prüfen.
+- **Hochladen-Seite:** Schritt-für-Schritt-Anleitung, jeder Beleg als PDF, Haken für «hochgeladen», ZIP für den Computer.
+- **Hilfe** mit Fragen und Antworten in einfacher Sprache.
+
 ## Standardordner
 
 | Ordner | Typische Belege |
@@ -99,12 +109,13 @@ Reines HTML/CSS/JavaScript ohne Build-Schritt und ohne Abhängigkeiten.
 | `app.js` | Ordner, Dokumente, Export, Abgleich |
 | `scan.js` | Blatterkennung, Entzerrung, Schattenentfernung (ohne Bibliotheken) |
 | `scanner.js` | Live-Scanner, automatische Auslösung, Ecken-Prüfbild |
+| `ui.css` | Oberfläche für Einsteiger (Schritte, Einführung, Hilfe, Hochladen) |
 | `db.js` | IndexedDB-Zugriff |
 | `pdfwriter.js` | Eigener PDF-Writer (JPEG-Seiten auf A4) |
 | `zip.js` | ZIP schreiben (Store) und lesen (Store/Deflate) |
 | `sw.js`, `manifest.webmanifest` | Offline-Betrieb und Installation als App |
 
-Bei Änderungen an den Dateien die Cache-Version in `sw.js` (`steuerordner-v5`) hochzählen,
+Bei Änderungen an den Dateien die Cache-Version in `sw.js` (`steuerordner-v6`) hochzählen,
 damit installierte Apps die neue Version laden.
 
 ## Scan-Qualität

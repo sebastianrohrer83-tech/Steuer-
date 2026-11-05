@@ -7,18 +7,23 @@ import { scanPages, reviewFiles } from './scanner.js';
 // Standardordner: orientiert an den Beilagen der Steuererklärung AR (natürliche Personen)
 // ---------------------------------------------------------------------------
 export const DEFAULT_FOLDERS = [
-  { key: 'einkommen', name: 'Lohn & Einkommen', icon: '💼', hint: 'Lohnausweis(e), AHV/IV-Rente, Pensionskassen-Rente, Taggelder (ALV, Krankentaggeld, Unfall), Erwerbsausfallentschädigung, Nebenerwerb' },
-  { key: 'wertschriften', name: 'Bank & Wertschriften', icon: '🏦', hint: 'Zins- und Saldobescheinigungen per 31.12., Steuerauszug Depot, Verrechnungssteuer, Kryptowährungen, Bargeld, Lotteriegewinne' },
-  { key: 'berufsauslagen', name: 'Berufsauslagen', icon: '🚆', hint: 'ÖV-Abo / Fahrkosten, Mehrkosten Verpflegung, Weiterbildung, Berufskleider und Werkzeuge, Homeoffice, Wochenaufenthalt' },
-  { key: 'vorsorge', name: 'Säule 3a & Pensionskasse', icon: '🛡️', hint: 'Bescheinigung Säule 3a, Einkauf Pensionskasse, Lebens- und Rentenversicherungen (Rückkaufswert), freiwillige AHV-Beiträge' },
-  { key: 'krankenkasse', name: 'Krankenkasse & Gesundheit', icon: '🏥', hint: 'Prämienübersicht Krankenkasse, Prämienverbilligung, Arzt-, Zahnarzt- und Spitalrechnungen, Selbstbehalt/Franchise, Brille, behinderungsbedingte Kosten' },
-  { key: 'liegenschaft', name: 'Liegenschaft & Wohnen', icon: '🏠', hint: 'Hypothekarzins-Bescheinigung, Unterhalts- und Renovationsrechnungen, Nebenkostenabrechnung, Eigenmietwert, Gebäudeversicherung, Mietvertrag' },
-  { key: 'schulden', name: 'Schulden & Schuldzinsen', icon: '💳', hint: 'Privatkredit, Kreditkartenzinsen, Darlehen, Schuldzinsbescheinigungen per 31.12.' },
-  { key: 'familie', name: 'Kinder & Familie', icon: '👨‍👩‍👧', hint: 'Fremdbetreuung (Kita, Tagesfamilie, Hort), erhaltene und bezahlte Alimente, Ausbildungskosten der Kinder, Unterstützungsbeiträge' },
-  { key: 'spenden', name: 'Spenden & Beiträge', icon: '🎁', hint: 'Spendenbescheinigungen (gemeinnützige Organisationen), Parteibeiträge, Beiträge Berufsverband / Gewerkschaft' },
-  { key: 'steuern', name: 'Steuern & Behörden', icon: '🏛️', hint: 'Veranlagungsverfügung Vorjahr, Steuerrechnungen, Steuererklärung Vorjahr, Quellensteuer, Korrespondenz mit dem Steueramt' },
-  { key: 'sonstiges', name: 'Sonstiges', icon: '📁', hint: 'Alles, was in keinen anderen Ordner passt (z. B. Erbschaft, Schenkung, Auslandkonten, Weiteres)' },
+  { key: 'einkommen', short: 'Lohnausweis, Rente, Taggelder', examples: ['Lohnausweis', 'AHV-Rente', 'Pensionskassenrente', 'Taggeld-Abrechnung'], name: 'Lohn & Einkommen', icon: '💼', hint: 'Lohnausweis(e), AHV/IV-Rente, Pensionskassen-Rente, Taggelder (ALV, Krankentaggeld, Unfall), Erwerbsausfallentschädigung, Nebenerwerb' },
+  { key: 'wertschriften', short: 'Konto, Sparen, Wertschriften', examples: ['Kontoauszug 31.12.', 'Zinsbescheinigung', 'Steuerauszug Depot'], name: 'Bank & Wertschriften', icon: '🏦', hint: 'Zins- und Saldobescheinigungen per 31.12., Steuerauszug Depot, Verrechnungssteuer, Kryptowährungen, Bargeld, Lotteriegewinne' },
+  { key: 'berufsauslagen', short: 'ÖV-Abo, Weiterbildung, Berufskleider', examples: ['ÖV-Abo', 'Weiterbildung', 'Berufskleider'], name: 'Berufsauslagen', icon: '🚆', hint: 'ÖV-Abo / Fahrkosten, Mehrkosten Verpflegung, Weiterbildung, Berufskleider und Werkzeuge, Homeoffice, Wochenaufenthalt' },
+  { key: 'vorsorge', short: 'Säule 3a, Pensionskasse', examples: ['Säule 3a Bescheinigung', 'Einkauf Pensionskasse'], name: 'Säule 3a & Pensionskasse', icon: '🛡️', hint: 'Bescheinigung Säule 3a, Einkauf Pensionskasse, Lebens- und Rentenversicherungen (Rückkaufswert), freiwillige AHV-Beiträge' },
+  { key: 'krankenkasse', short: 'Prämien, Arzt, Zahnarzt', examples: ['Prämienübersicht', 'Arztrechnung', 'Zahnarztrechnung'], name: 'Krankenkasse & Gesundheit', icon: '🏥', hint: 'Prämienübersicht Krankenkasse, Prämienverbilligung, Arzt-, Zahnarzt- und Spitalrechnungen, Selbstbehalt/Franchise, Brille, behinderungsbedingte Kosten' },
+  { key: 'liegenschaft', short: 'Hypothek, Nebenkosten, Unterhalt', examples: ['Hypothekarzins', 'Nebenkostenabrechnung', 'Unterhaltsrechnung'], name: 'Liegenschaft & Wohnen', icon: '🏠', hint: 'Hypothekarzins-Bescheinigung, Unterhalts- und Renovationsrechnungen, Nebenkostenabrechnung, Eigenmietwert, Gebäudeversicherung, Mietvertrag' },
+  { key: 'schulden', short: 'Kredit, Zinsen', examples: ['Kreditzinsen', 'Schuldzinsbescheinigung'], name: 'Schulden & Schuldzinsen', icon: '💳', hint: 'Privatkredit, Kreditkartenzinsen, Darlehen, Schuldzinsbescheinigungen per 31.12.' },
+  { key: 'familie', short: 'Kita, Alimente, Ausbildung der Kinder', examples: ['Kita-Rechnung', 'Alimente', 'Ausbildungskosten'], name: 'Kinder & Familie', icon: '👨‍👩‍👧', hint: 'Fremdbetreuung (Kita, Tagesfamilie, Hort), erhaltene und bezahlte Alimente, Ausbildungskosten der Kinder, Unterstützungsbeiträge' },
+  { key: 'spenden', short: 'Spenden, Mitgliederbeiträge', examples: ['Spendenbescheinigung', 'Mitgliederbeitrag'], name: 'Spenden & Beiträge', icon: '🎁', hint: 'Spendenbescheinigungen (gemeinnützige Organisationen), Parteibeiträge, Beiträge Berufsverband / Gewerkschaft' },
+  { key: 'steuern', short: 'Veranlagung, Steuerrechnung', examples: ['Veranlagung Vorjahr', 'Steuerrechnung'], name: 'Steuern & Behörden', icon: '🏛️', hint: 'Veranlagungsverfügung Vorjahr, Steuerrechnungen, Steuererklärung Vorjahr, Quellensteuer, Korrespondenz mit dem Steueramt' },
+  { key: 'sonstiges', short: 'Alles andere', examples: [], name: 'Sonstiges', icon: '📁', hint: 'Alles, was in keinen anderen Ordner passt (z. B. Erbschaft, Schenkung, Auslandkonten, Weiteres)' },
 ];
+
+const DEFAULT_BY_KEY = Object.fromEntries(DEFAULT_FOLDERS.map((f) => [f.key, f]));
+const shortOf = (f) => (DEFAULT_BY_KEY[f.builtin] && DEFAULT_BY_KEY[f.builtin].short) || (f.hint ? f.hint.slice(0, 48) : '');
+const examplesOf = (f) => (DEFAULT_BY_KEY[f.builtin] && DEFAULT_BY_KEY[f.builtin].examples) || [];
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 const $ = (s, r = document) => r.querySelector(s);
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
@@ -419,7 +424,26 @@ const isPdf = (f) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
 
 // Seiten per Live-Scanner aufnehmen. Ohne Kamerazugriff wird die Foto-Aufnahme des Geräts verwendet.
 // Ergebnis: Seitenliste oder null (abgebrochen).
+async function maybeScanTip() {
+  if (await getSetting('scanTipSeen')) return true;
+  const r = await dialog(`<h2>So gelingt der Scan</h2>
+    <ol class="bigsteps">
+      <li>Lege das Blatt flach auf einen <strong>dunklen Tisch</strong>.</li>
+      <li>Halte das Handy ruhig. Das <strong>ganze Blatt</strong> muss im Bild sein.</li>
+      <li>Die App löst <strong>von selbst</strong> aus, sobald der Rahmen grün ist.</li>
+      <li>Prüfe den Rahmen und tippe auf <strong>Übernehmen</strong>.</li>
+    </ol>
+    <div class="dlg-actions column">
+      <button type="button" data-value="go" class="btn primary">Verstanden, Kamera öffnen</button>
+      <button type="button" data-value="cancel" class="btn ghost">Abbrechen</button>
+    </div>`);
+  if (r !== 'go') return false;
+  await setSetting('scanTipSeen', true);
+  return true;
+}
+
 async function collectCameraPages() {
+  if (!(await maybeScanTip())) return null;
   const mode = await getScanMode();
   const res = await scanPages({ mode, auto: await getSetting('autoCapture', true), onAuto: (v) => setSetting('autoCapture', v) });
   if (res !== 'unavailable') return res;
@@ -461,12 +485,16 @@ function pickFiles({ camera }) {
   });
 }
 
-async function chooseFolder(year, title = 'In welchen Ordner?') {
+async function chooseFolder(year, title = 'Wohin gehört der Beleg?') {
   const folders = await foldersOf(year);
   const r = await dialog(`<h2>${esc(title)}</h2>
-    <label>Ordner<select name="folderId">${folders.map((f) => `<option value="${f.id}">${esc((f.icon || '') + ' ' + f.name)}</option>`).join('')}</select></label>
-    <div class="dlg-actions"><button type="button" data-value="cancel" class="btn">Abbrechen</button><button type="submit" class="btn primary">Weiter</button></div>`);
-  return r ? folders.find((f) => f.id === r.folderId) : null;
+    <p>Tippe auf den passenden Ordner.</p>
+    <div class="dlg-actions column folderpick">
+      ${folders.map((f) => `<button type="button" data-value="${f.id}" class="btn pick"><span class="pk-i">${esc(f.icon || '📁')}</span><span class="pk-t"><strong>${esc(f.name)}</strong><small>${esc(shortOf(f))}</small></span></button>`).join('')}
+    </div>
+    <div class="dlg-actions column"><button type="button" data-value="cancel" class="btn ghost">Abbrechen</button></div>`);
+  if (!r || r === 'cancel') return null;
+  return folders.find((f) => f.id === r) || null;
 }
 
 async function scanInto(folder, year, camera) {
@@ -505,42 +533,49 @@ async function renderHome() {
   const folders = await foldersOf(year);
   const docs = await db.getAllBy('docs', 'year', year);
   const countBy = {};
-  const upBy = {};
-  for (const d of docs) { countBy[d.folderId] = (countBy[d.folderId] || 0) + 1; if (d.uploaded) upBy[d.folderId] = (upBy[d.folderId] || 0) + 1; }
+  for (const d of docs) countBy[d.folderId] = (countBy[d.folderId] || 0) + 1;
   const uploaded = docs.filter((d) => d.uploaded).length;
+  const first = docs.length === 0;
+  const allUp = docs.length > 0 && uploaded === docs.length;
   const sync = await changesSinceSync();
-  setHeader('Steuerordner', { right: `<a class="iconbtn" href="#/settings" title="Einstellungen" aria-label="Einstellungen">⚙︎</a>` });
+  setHeader('Steuerordner', { right: `<a class="iconbtn" href="#/help" title="Hilfe" aria-label="Hilfe">?</a><a class="iconbtn" href="#/settings" title="Einstellungen" aria-label="Einstellungen">⚙︎</a>` });
   view().innerHTML = `
-    <section class="yearbar">
+    <section class="stepcard">
       <label class="yearsel">Steuerjahr
-        <select id="yearSelect">${years.map((y) => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}<option value="__new">+ Neues Steuerjahr …</option></select>
+        <select id="yearSelect">${years.map((y) => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}<option value="__new">+ Anderes Jahr anlegen …</option></select>
       </label>
-      <div class="stats">${docs.length} Dokument${docs.length === 1 ? '' : 'e'} · ${uploaded} hochgeladen</div>
-      ${docs.length ? `<div class="progress"><div style="width:${Math.round((uploaded / docs.length) * 100)}%"></div></div>` : ''}
-      <a class="syncline ${sync && sync.n ? 'pending' : ''}" href="#/settings">${sync ? `Letzter Abgleich ${fmtDate(sync.last)}${sync.n ? ` · ${sync.n} Änderung${sync.n === 1 ? '' : 'en'} noch nicht abgeglichen` : ' · alles abgeglichen'}` : 'Noch kein Abgleich mit anderen Geräten'} ›</a>
+      <p class="muted small">Das Jahr, für das du die Steuererklärung ausfüllst.</p>
+      <ol class="stepper">
+        <li class="${first ? 'now' : 'done'}"><b>${first ? '1' : '✓'}</b><span>Belege sammeln<small>${plural(docs.length, 'Beleg', 'Belege')} gesammelt</small></span></li>
+        <li class="${allUp ? 'done' : (first ? '' : 'now')}"><b>${allUp ? '✓' : '2'}</b><span>Belege hochladen<small>${uploaded} von ${docs.length} hochgeladen</small></span></li>
+      </ol>
     </section>
+    ${first ? `<section class="tipcard"><strong>So fängst du an</strong><ol>
+      <li>Tippe unten auf <b>Beleg scannen</b>.</li>
+      <li>Wähle den passenden Ordner, zum Beispiel <b>Lohn &amp; Einkommen</b> für deinen Lohnausweis.</li>
+      <li>Lege das Blatt auf einen dunklen Tisch. Die App macht das Foto von selbst.</li></ol></section>` : ''}
+    <h2 class="sectitle">Deine Ordner</h2>
     <section class="grid">
       ${folders.map((f) => `
         <a class="card" href="#/f/${f.id}">
           <div class="card-icon">${esc(f.icon || '📁')}</div>
           <div class="card-name">${esc(f.name)}</div>
-          <div class="card-count">${countBy[f.id] || 0} Dok.${upBy[f.id] ? ` · ${upBy[f.id]} ✓` : ''}</div>
+          <div class="card-short">${esc(shortOf(f))}</div>
+          <div class="card-count">${countBy[f.id] ? plural(countBy[f.id], 'Beleg', 'Belege') : 'noch leer'}</div>
         </a>`).join('')}
-      <button class="card card-add" data-action="newFolder"><div class="card-icon">＋</div><div class="card-name">Neuer Ordner</div></button>
+      <button class="card card-add" data-action="newFolder"><div class="card-icon">＋</div><div class="card-name">Eigener Ordner</div></button>
     </section>
-    <section class="hintbox">
-      <strong>So funktioniert's:</strong> Ordner öffnen → <em>Scannen</em> → Beleg fotografieren → Titel vergeben. Für die Online-Steuererklärung (Steuern AR Online) exportierst du die Belege als PDF und lädst sie dort als Beilagen hoch.
-    </section>
+    <button class="linkbtn" data-action="quickPick">🖼️ Belege aus Fotos oder Dateien hinzufügen</button>
+    ${sync ? `<a class="syncline ${sync.n ? 'pending' : ''}" href="#/settings">Letzter Abgleich mit der Familie: ${fmtDate(sync.last)}${sync.n ? ` · ${sync.n} Änderung${sync.n === 1 ? '' : 'en'} noch nicht abgeglichen` : ''} ›</a>` : ''}
     <nav class="bottombar">
-      <button class="btn primary big" data-action="quickScan">📷 Scannen</button>
-      <button class="btn big" data-action="quickPick">🖼️ Datei / Foto</button>
-      <button class="btn big" data-action="exportYear">⤓ Upload-Paket</button>
+      <button class="btn primary big wide" data-action="quickScan">📷 Beleg scannen</button>
+      <a class="btn big" href="#/upload">📤 Hochladen</a>
     </nav>`;
 
   $('#yearSelect').onchange = async (e) => {
     const v = e.target.value;
     if (v === '__new') {
-      const y = await promptDlg('Neues Steuerjahr', 'Jahr (z. B. 2025)', String(year + 1), 'Anlegen');
+      const y = await promptDlg('Anderes Steuerjahr', 'Jahr (z. B. 2025)', String(year + 1), 'Anlegen');
       e.target.value = String(year);
       if (!y || !/^\d{4}$/.test(y)) return;
       await ensureYear(Number(y));
@@ -553,21 +588,13 @@ async function renderHome() {
     if (!btn) return;
     const a = btn.dataset.action;
     if (a === 'newFolder') {
-      const name = await promptDlg('Neuer Ordner', 'Name des Ordners', '', 'Anlegen');
+      const name = await promptDlg('Eigener Ordner', 'Wie soll der Ordner heissen?', '', 'Anlegen');
       if (!name) return;
       await db.put('folders', { id: uid(), year, name, icon: '📁', hint: '', order: folders.length + 1, createdAt: Date.now() });
       render();
     } else if (a === 'quickScan' || a === 'quickPick') {
       const f = await chooseFolder(year);
       if (f) await scanInto(f, year, a === 'quickScan');
-    } else if (a === 'exportYear') {
-      const r = await dialog(`<h2>Upload-Paket ${year}</h2>
-        <p>Erstellt eine ZIP-Datei mit allen Belegen als PDF, sortiert nach Ordner. Diese PDFs lädst du anschliessend in der Online-Steuererklärung als Beilagen hoch.</p>
-        <div class="dlg-actions column">
-          <button type="button" data-value="open" class="btn primary">Nur noch nicht hochgeladene</button>
-          <button type="button" data-value="all" class="btn">Alle Dokumente</button>
-          <button type="button" data-value="cancel" class="btn ghost">Abbrechen</button></div>`);
-      if (r === 'open' || r === 'all') await exportYearZip(year, r === 'open');
     }
   };
 }
@@ -579,7 +606,7 @@ async function renderFolder(folderId) {
   const docs = await docsOf(folderId);
   setHeader(folder.name, { back: '#/', right: `<button class="iconbtn" data-action="folderMenu" aria-label="Ordner-Menü">⋯</button>` });
   view().innerHTML = `
-    ${folder.hint ? `<details class="hintbox" ${docs.length ? '' : 'open'}><summary>Was gehört hier hinein?</summary><p>${esc(folder.hint)}</p></details>` : ''}
+    ${folder.hint ? `<details class="hintbox" ${docs.length ? '' : 'open'}><summary>Was gehört in diesen Ordner?</summary><p>${esc(folder.hint)}</p></details>` : ''}
     ${docs.length ? `<ul class="doclist">${docs.map((d) => `
       <li><a href="#/d/${d.id}">
         <div class="thumb">${d.kind === 'pdf' ? '<span class="pdfbadge">PDF</span>' : (d.pages[0] ? `<img src="${blobUrl(d.pages[0].blob)}" alt="">` : '')}</div>
@@ -589,11 +616,10 @@ async function renderFolder(folderId) {
         </div>
         <div class="status ${d.uploaded ? 'ok' : ''}" title="${d.uploaded ? 'hochgeladen' : 'noch nicht hochgeladen'}">${d.uploaded ? '✓' : '○'}</div>
       </a></li>`).join('')}</ul>`
-      : `<div class="empty"><div class="empty-icon">${esc(folder.icon || '📁')}</div><p>Noch keine Dokumente.<br>Tippe auf <strong>Scannen</strong>, um einen Beleg zu fotografieren.</p></div>`}
+      : `<div class="empty"><div class="empty-icon">${esc(folder.icon || '📁')}</div><p>Hier ist noch nichts.<br>Tippe auf <strong>Beleg scannen</strong>${examplesOf(folder)[0] ? `, zum Beispiel für «${esc(examplesOf(folder)[0])}»` : ''}.</p></div>`}
     <nav class="bottombar">
-      <button class="btn primary big" data-action="scan">📷 Scannen</button>
-      <button class="btn big" data-action="pick">🖼️ Datei / Foto</button>
-      <button class="btn big" data-action="zip" ${docs.length ? '' : 'disabled'}>⤓ ZIP</button>
+      <button class="btn primary big wide" data-action="scan">📷 Beleg scannen</button>
+      <button class="btn big" data-action="pick">🖼️ Aus Fotos</button>
     </nav>`;
 
   const handler = async (e) => {
@@ -602,13 +628,13 @@ async function renderFolder(folderId) {
     const a = btn.dataset.action;
     if (a === 'scan') await scanInto(folder, year, true);
     else if (a === 'pick') await scanInto(folder, year, false);
-    else if (a === 'zip') await exportFolderZip(year, folder);
     else if (a === 'folderMenu') {
       const r = await dialog(`<h2>${esc(folder.name)}</h2>
         <div class="dlg-actions column">
           <button type="button" data-value="rename" class="btn">Umbenennen</button>
           <button type="button" data-value="hint" class="btn">Hinweistext bearbeiten</button>
           <button type="button" data-value="icon" class="btn">Symbol ändern</button>
+          <button type="button" data-value="zip" class="btn">Alle Belege als ZIP-Datei speichern</button>
           <button type="button" data-value="markAll" class="btn">Alle als hochgeladen markieren</button>
           <button type="button" data-value="delete" class="btn danger">Ordner löschen</button>
           <button type="button" data-value="cancel" class="btn ghost">Abbrechen</button></div>`);
@@ -622,6 +648,8 @@ async function renderFolder(folderId) {
       } else if (r === 'icon') {
         const n = await promptDlg('Symbol', 'Emoji oder kurzes Zeichen', folder.icon || '📁');
         if (n) { folder.icon = n.slice(0, 4); await db.put('folders', folder); render(); }
+      } else if (r === 'zip') {
+        await exportFolderZip(year, folder);
       } else if (r === 'markAll') {
         for (const d of docs) { d.uploaded = true; d.uploadedAt = Date.now(); d.updatedAt = Date.now(); await db.put('docs', d); }
         render();
@@ -647,10 +675,12 @@ async function renderDoc(docId, params) {
   setHeader(folder ? folder.name : 'Dokument', { back: `#/f/${doc.folderId}`, right: `<button class="iconbtn" data-action="docMenu" aria-label="Dokument-Menü">⋯</button>` });
   const isImg = doc.kind !== 'pdf';
   view().innerHTML = `
+    ${params.get('new') ? '<div class="coach"><strong>Beleg gespeichert.</strong> Gib ihm jetzt einen Namen, damit du ihn später findest.</div>' : ''}
     <section class="docform">
-      <label>Titel<input type="text" id="docTitle" value="${esc(doc.title)}" maxlength="100" placeholder="z. B. Lohnausweis Firma AG"></label>
-      <label>Notiz (optional)<input type="text" id="docNote" value="${esc(doc.note || '')}" maxlength="200" placeholder="z. B. Betrag CHF 1'234.50, Ziffer 2.1"></label>
-      <label class="check"><input type="checkbox" id="docUploaded" ${doc.uploaded ? 'checked' : ''}> In der Online-Steuererklärung hochgeladen${doc.uploadedAt ? ` <small>(${fmtDate(doc.uploadedAt)})</small>` : ''}</label>
+      <label>Name des Belegs<input type="text" id="docTitle" value="${esc(doc.title)}" maxlength="100" placeholder="z. B. Lohnausweis"></label>
+      ${folder && examplesOf(folder).length ? `<div><p class="fieldhint">Oder tippe auf einen Vorschlag:</p><div class="chips">${examplesOf(folder).map((t) => `<button type="button" class="chip" data-action="chip" data-t="${esc(t)}">${esc(t)}</button>`).join('')}</div></div>` : ''}
+      <label>Notiz (kannst du leer lassen)<input type="text" id="docNote" value="${esc(doc.note || '')}" maxlength="200" placeholder="z. B. Betrag CHF 1'234.50"></label>
+      <label class="check"><input type="checkbox" id="docUploaded" ${doc.uploaded ? 'checked' : ''}> Ich habe diesen Beleg in der Online-Steuererklärung hochgeladen${doc.uploadedAt ? ` <small>(${fmtDate(doc.uploadedAt)})</small>` : ''}</label>
     </section>
     ${isImg ? `<section class="pages">${doc.pages.map((p, i) => `
       <figure class="page">
@@ -666,13 +696,13 @@ async function renderDoc(docId, params) {
         </figcaption>
       </figure>`).join('')}
       <div class="addpage">
-        <button class="btn" data-action="addPageCam">📷 Seite scannen</button>
+        <button class="btn" data-action="addPageCam">📷 Weitere Seite scannen</button>
         <button class="btn" data-action="addPagePick">🖼️ Seite aus Fotos</button>
       </div></section>`
       : `<section class="pdfinfo"><span class="pdfbadge big">PDF</span><p>${esc(doc.title)}.pdf · ${fmtBytes(docSize(doc))}</p><button class="btn" data-action="openPdf">PDF anzeigen</button></section>`}
     <nav class="bottombar">
-      <button class="btn primary big" data-action="share">⇪ PDF teilen / speichern</button>
-      <button class="btn big" data-action="download">⤓ PDF</button>
+      <button class="btn primary big wide" data-action="share">📤 PDF teilen oder speichern</button>
+      <button class="btn big" data-action="download">⤓ PDF laden</button>
     </nav>`;
 
   let saveTimer;
@@ -702,7 +732,13 @@ async function renderDoc(docId, params) {
     const a = btn.dataset.action;
     const i = Number(btn.dataset.i);
     const fname = pdfName(year, folder || { name: 'Ordner' }, doc);
-    if (a === 'share' || a === 'download') {
+    if (a === 'chip') {
+      $('#docTitle').value = btn.dataset.t;
+      doc.title = btn.dataset.t;
+      doc.updatedAt = Date.now();
+      await db.put('docs', doc);
+      toast('Name gespeichert.');
+    } else if (a === 'share' || a === 'download') {
       busy(true, 'PDF wird erstellt …');
       try {
         const pdf = await docToPdf(doc);
@@ -740,7 +776,7 @@ async function renderDoc(docId, params) {
           <button type="button" data-value="delete" class="btn danger">Dokument löschen</button>
           <button type="button" data-value="cancel" class="btn ghost">Abbrechen</button></div>`);
       if (r === 'move') {
-        const f = await chooseFolder(year, 'Verschieben nach …');
+        const f = await chooseFolder(year, 'Wohin soll der Beleg?');
         if (f) { doc.folderId = f.id; doc.updatedAt = Date.now(); await db.put('docs', doc); location.hash = `#/f/${f.id}`; }
       } else if (r === 'delete') {
         if (await confirmDlg('Dokument löschen?', 'Das Dokument mit allen Seiten wird unwiderruflich gelöscht.')) {
@@ -770,15 +806,25 @@ async function renderSettings() {
   setHeader('Einstellungen', { back: '#/' });
   view().innerHTML = `
     <section class="settings">
-      <h3>Scan</h3>
-      <label class="setrow">Bildaufbereitung
+      <h3>Ich</h3>
+      <label class="setrow">Mein Name
+        <input type="text" id="userName" value="${esc(userName)}" maxlength="30" placeholder="z. B. Anna">
+        <span class="fieldhint">Er wird bei neuen Belegen vermerkt, damit die Familie sieht, wer sie abgelegt hat.</span>
+      </label>
+
+      <h3>Scannen</h3>
+      <label class="setrow">So sehen die Scans aus
         <select id="scanMode">
-          <option value="doc" ${scanMode === 'doc' ? 'selected' : ''}>Dokument: Schwarzweiss, Schatten entfernt</option>
-          <option value="color" ${scanMode === 'color' ? 'selected' : ''}>Farbe: Schatten entfernt</option>
-          <option value="orig" ${scanMode === 'orig' ? 'selected' : ''}>Original: nur zuschneiden und begradigen</option>
+          <option value="doc" ${scanMode === 'doc' ? 'selected' : ''}>Dokument: Schwarzweiss, ohne Schatten (empfohlen)</option>
+          <option value="color" ${scanMode === 'color' ? 'selected' : ''}>Farbe: ohne Schatten</option>
+          <option value="orig" ${scanMode === 'orig' ? 'selected' : ''}>Original: nur zuschneiden</option>
         </select>
       </label>
-      <label class="check"><input type="checkbox" id="autoCap" ${autoCap ? 'checked' : ''}> Automatisch auslösen, sobald das Blatt erkannt ist</label>
+      <label class="check"><input type="checkbox" id="autoCap" ${autoCap ? 'checked' : ''}> Foto automatisch auslösen, sobald das Blatt erkannt ist</label>
+
+      <h3>Belege hochladen</h3>
+      <p>Hier überträgst du deine Belege in die Online-Steuererklärung. Die App führt dich Schritt für Schritt.</p>
+      <a class="btn primary" href="#/upload">📤 Zum Hochladen</a>
 
       <h3>Steuerjahre</h3>
       <ul class="plain">${years.map((y) => `<li><span>Steuerjahr ${y}${y === year ? ' (aktiv)' : ''}</span><button class="iconbtn danger" data-action="delYear" data-year="${y}" title="Steuerjahr löschen">✕</button></li>`).join('')}</ul>
@@ -787,33 +833,29 @@ async function renderSettings() {
         <button class="btn" data-action="restoreDefaults">Fehlende Standardordner ergänzen (${year})</button>
       </div>
 
-      <h3>Export für die Steuererklärung</h3>
-      <p>Die Online-Steuererklärung von Appenzell Ausserrhoden («Steuern AR Online», über <a href="https://mein.ar.ch" target="_blank" rel="noopener">mein.ar.ch</a>) nimmt Beilagen als Dateien entgegen. Erstelle hier das Upload-Paket (ZIP mit einem PDF pro Beleg), entpacke es am Computer und lade die PDFs bei den jeweiligen Positionen hoch. Markiere danach die Dokumente in der App als «hochgeladen».</p>
-      <div class="row">
-        <button class="btn primary" data-action="exportOpen">⤓ Upload-Paket ${year} (offene)</button>
-        <button class="btn" data-action="exportAll">⤓ Upload-Paket ${year} (alle)</button>
-      </div>
-
-      <h3>Gemeinsam im Haushalt (geteilter iCloud-Ordner)</h3>
-      <p>Alle im Haushalt nutzen einen gemeinsamen Ordner in iCloud Drive. <strong>Jede Person speichert ihre eigene Datei</strong> dort hinein, so überschreibt niemand die Arbeit der anderen. Beim Einlesen werden alle Dateien des Ordners zusammengeführt: Neueres gewinnt, Löschungen werden übernommen, nichts wird doppelt angelegt.</p>
-      <label class="setrow">Dein Name
-        <input type="text" id="userName" value="${esc(userName)}" maxlength="30" placeholder="z. B. Anna">
-      </label>
+      <h3>Gemeinsam mit der Familie</h3>
+      <p>Alle nutzen einen gemeinsamen Ordner in <strong>iCloud Drive</strong> oder <strong>Google Drive</strong>. <strong>Jede Person speichert ihre eigene Datei</strong> dort hinein, so überschreibt niemand die Arbeit der anderen. Beim Einlesen werden alle Dateien zusammengeführt, nichts wird doppelt angelegt.</p>
       <ol class="steps">
-        <li><strong>Einmalig:</strong> In der Dateien-App einen Ordner «Steuer» in iCloud Drive anlegen, gedrückt halten, «Teilen» → «Zusammenarbeiten» → Personen aus dem Haushalt einladen.</li>
-        <li><strong>Eigene Datei speichern</strong> → «In Dateien sichern» → Ordner «Steuer» → vorhandene Datei ersetzen.</li>
-        <li><strong>Dateien einlesen</strong> → im Ordner «Steuer» <em>alle</em> Dateien markieren und öffnen.</li>
+        <li><strong>Einmalig:</strong> In iCloud Drive oder Google Drive einen Ordner «Steuer» anlegen und mit der Familie teilen (Bearbeiter).</li>
+        <li><strong>Meine Datei speichern</strong>, dann «In Dateien sichern» und den Ordner «Steuer» wählen.</li>
+        <li><strong>Dateien einlesen</strong>, dann im Ordner «Steuer» <em>alle</em> Dateien markieren.</li>
       </ol>
       <div class="row">
         <button class="btn primary" data-action="syncLoad">⤒ Dateien einlesen</button>
         <button class="btn" data-action="syncSave">⇪ Meine Datei speichern</button>
       </div>
-      <p class="muted">${sync ? `Letzter Abgleich: ${new Date(sync.last).toLocaleString('de-CH')}${sync.n ? ` · ${sync.n} Änderung(en) seither` : ''}` : 'Noch kein Abgleich durchgeführt.'} Die Sync-Datei ist zugleich dein Backup.</p>
+      <p class="muted">${sync ? `Letzter Abgleich: ${new Date(sync.last).toLocaleString('de-CH')}${sync.n ? ` · ${sync.n} Änderung(en) seither` : ''}` : 'Noch kein Abgleich durchgeführt.'} Die Datei ist zugleich deine Sicherung.</p>
+
+      <h3>Hilfe</h3>
+      <div class="row">
+        <a class="btn" href="#/help">Hilfe ansehen</a>
+        <button class="btn" data-action="again">Einführung nochmals ansehen</button>
+      </div>
+
+      <h3>Sicherheit deiner Daten</h3>
+      <p class="muted">Diese App sendet keine Daten ins Internet. Scans, Ordner und Notizen bleiben auf diesem Gerät. Beim Teilen eines PDFs entscheidest du selbst, wohin es geht.</p>
       <p class="muted">${esc(storage)}${persisted ? ' · Speicher ist dauerhaft geschützt' : ''}</p>
       ${!persisted && navigator.storage && navigator.storage.persist ? '<button class="btn" data-action="persist">Speicher dauerhaft schützen</button>' : ''}
-
-      <h3>Datenschutz</h3>
-      <p class="muted">Diese App sendet keine Daten an einen Server. Scans, Ordner und Notizen bleiben lokal auf dem Gerät (IndexedDB). Beim Teilen eines PDFs entscheidest du selbst, wohin es geht.</p>
       <p class="muted">Version ${APP_VERSION}</p>
     </section>`;
 
@@ -840,6 +882,9 @@ async function renderSettings() {
       await db.del('years', y);
       if (y === year) { const rest = years.filter((x) => x !== y); await setSetting('year', rest[0] || new Date().getFullYear()); }
       render();
+    } else if (a === 'again') {
+      welcome = {};
+      location.hash = '#/welcome?again=1';
     } else if (a === 'restoreDefaults') {
       const n = await createDefaultFolders(year, true);
       toast(n ? `${n} Standardordner ergänzt.` : 'Alle Standardordner sind vorhanden.');
@@ -863,9 +908,206 @@ async function renderSettings() {
 }
 
 // ---------------------------------------------------------------------------
+// Einführung (erster Start), Hilfe, Hochladen
+// ---------------------------------------------------------------------------
+let welcome = {};
+
+async function renderWelcome(params) {
+  if (!welcome.init) {
+    const d = new Date();
+    welcome = {
+      init: true, step: 0,
+      name: await getSetting('userName', ''),
+      year: (await getSetting('year')) || (d.getMonth() < 6 ? d.getFullYear() - 1 : d.getFullYear()),
+      again: !!params.get('again'),
+    };
+  }
+  const w = welcome;
+  const thisYear = new Date().getFullYear();
+  setHeader('Willkommen', {});
+  const dots = [0, 1, 2].map((i) => `<span class="dot ${i === w.step ? 'on' : ''}"></span>`).join('');
+  let body = '';
+  if (w.step === 0) {
+    body = `
+      <div class="bigicon">🗂️</div>
+      <h2>Willkommen bei Steuerordner</h2>
+      <p class="lead">Hier sammelst du alle Belege für deine Steuererklärung. Du brauchst dafür nur dein Handy.</p>
+      <ul class="points">
+        <li><b class="n">1</b><span><strong>Beleg fotografieren.</strong> Die App schneidet das Blatt automatisch zu.</span></li>
+        <li><b class="n">2</b><span><strong>Ordner wählen.</strong> Zum Beispiel «Lohn» oder «Krankenkasse».</span></li>
+        <li><b class="n">3</b><span><strong>Hochladen.</strong> Die App hilft dir, die Belege in die Online-Steuererklärung zu übertragen.</span></li>
+      </ul>
+      <p class="muted small">Alles bleibt auf deinem Handy. Es wird nichts ins Internet gesendet.</p>
+      <div class="actions"><button class="btn primary huge" data-action="next">Los geht's</button></div>
+      ${w.again ? '' : '<button class="skip" data-action="skip">Einführung überspringen</button>'}`;
+  } else if (w.step === 1) {
+    body = `
+      <div class="bigicon">✏️</div>
+      <h2>Zwei kurze Angaben</h2>
+      <div class="form">
+        <label>Für welches Steuerjahr sammelst du Belege?
+          <select id="wYear">${[thisYear - 2, thisYear - 1, thisYear].map((y) => `<option value="${y}" ${Number(w.year) === y ? 'selected' : ''}>${y}</option>`).join('')}</select>
+          <span class="fieldhint">Das Jahr, für das du die Steuererklärung ausfüllst. Du kannst das später ändern.</span>
+        </label>
+        <label>Wie heisst du? (kannst du leer lassen)
+          <input type="text" id="wName" value="${esc(w.name)}" maxlength="30" placeholder="z. B. Anna">
+          <span class="fieldhint">Praktisch, wenn mehrere Personen zusammen Belege sammeln.</span>
+        </label>
+      </div>
+      <div class="actions"><button class="btn" data-action="back">Zurück</button><button class="btn primary" data-action="next">Weiter</button></div>`;
+  } else {
+    body = `
+      <div class="bigicon">🎉</div>
+      <h2>Alles bereit</h2>
+      <p class="lead">Dein Steuerordner für ${esc(w.year)} ist angelegt, mit allen wichtigen Ordnern.</p>
+      <ul class="points">
+        <li><b class="n">💼</b><span><strong>Tipp zum Start:</strong> Beginne mit dem Lohnausweis. Tippe auf <em>Beleg scannen</em> und wähle <em>Lohn &amp; Einkommen</em>.</span></li>
+        <li><b class="n">?</b><span><strong>Fragen?</strong> Oben rechts auf der Startseite findest du die Hilfe.</span></li>
+      </ul>
+      <div class="actions"><button class="btn" data-action="back">Zurück</button><button class="btn primary" data-action="finish">Zur Startseite</button></div>`;
+  }
+  view().innerHTML = `<section class="welcome">${body}<div class="dots">${dots}</div></section>`;
+
+  const finish = async () => {
+    const year = Number(welcome.year);
+    await ensureYear(year);
+    await setSetting('year', year);
+    if (welcome.name) await setSetting('userName', welcome.name);
+    await setSetting('onboarded', true);
+    welcome = {};
+    location.hash = '#/';
+  };
+  view().onclick = async (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const a = btn.dataset.action;
+    if (w.step === 1) {
+      const y = $('#wYear'), n = $('#wName');
+      if (y) w.year = Number(y.value);
+      if (n) w.name = n.value.trim();
+    }
+    if (a === 'next') { w.step++; renderWelcome(params); }
+    else if (a === 'back') { w.step--; renderWelcome(params); }
+    else if (a === 'skip' || a === 'finish') await finish();
+  };
+}
+
+async function renderHelp() {
+  setHeader('Hilfe', { back: '#/' });
+  view().innerHTML = `
+    <section class="help">
+      <p class="muted">Tippe auf eine Frage, um die Antwort zu sehen.</p>
+      <details open><summary>Wie scanne ich einen Beleg?</summary>
+        <ol>
+          <li>Tippe auf der Startseite auf <strong>Beleg scannen</strong>.</li>
+          <li>Wähle den passenden Ordner.</li>
+          <li>Lege das Blatt flach auf einen <strong>dunklen Tisch</strong> und halte das Handy ruhig. Wenn der Rahmen grün wird, macht die App das Foto von selbst.</li>
+          <li>Prüfe den Rahmen und tippe auf <strong>Übernehmen</strong>.</li>
+          <li>Gib dem Beleg einen Namen. Mehrseitige Belege: mehrere Seiten nacheinander aufnehmen, dann <strong>Fertig</strong>.</li>
+        </ol>
+      </details>
+      <details><summary>Der Scan ist schief oder abgeschnitten. Was tun?</summary>
+        <p>Nach dem Foto siehst du einen grünen Rahmen mit vier Punkten. Ziehe jeden Punkt mit dem Finger genau auf eine Ecke des Blattes und tippe dann auf <strong>Übernehmen</strong>. Ein dunkler Tisch und gutes Licht helfen. Mit <strong>Ganzes Bild</strong> nimmst du das ganze Foto.</p>
+      </details>
+      <details><summary>Was ist das Steuerjahr?</summary>
+        <p>Das Jahr, für das du die Steuererklärung ausfüllst, zum Beispiel 2025. Du wählst es oben auf der Startseite. Für jedes Jahr gibt es eigene Ordner.</p>
+      </details>
+      <details><summary>Wo finde ich meine Belege wieder?</summary>
+        <p>Tippe auf der Startseite auf einen Ordner. Dort siehst du alle Belege dieses Ordners. Tippe einen Beleg an, um ihn umzubenennen, Seiten zu drehen oder ihn zu löschen.</p>
+      </details>
+      <details><summary>Wie komme ich zur Online-Steuererklärung?</summary>
+        <p>Tippe auf der Startseite auf <strong>Hochladen</strong>. Dort führt dich die App Schritt für Schritt und zeigt dir jeden Beleg als PDF.</p>
+      </details>
+      <details><summary>Wie arbeiten wir zu zweit oder als Familie?</summary>
+        <p>Alle nutzen einen gemeinsamen Ordner in iCloud Drive oder Google Drive. Jede Person speichert ihre eigene Datei dort hinein und liest die Dateien der anderen ein. Die genauen Schritte stehen in den Einstellungen unter «Gemeinsam mit der Familie».</p>
+      </details>
+      <details><summary>Sind meine Daten sicher? Kann etwas verloren gehen?</summary>
+        <p>Die Belege bleiben auf deinem Gerät, die App sendet nichts ins Internet. Damit nichts verloren geht, installiere die App auf dem Home-Bildschirm und speichere ab und zu <strong>Meine Datei</strong> in den Einstellungen. Diese Datei ist deine Sicherung.</p>
+      </details>
+      <details><summary>Wie lege ich die App auf den Home-Bildschirm?</summary>
+        <ol>
+          <li>Öffne die Seite in <strong>Safari</strong>.</li>
+          <li>Tippe auf das Teilen-Symbol (Quadrat mit Pfeil) oder auf «…».</li>
+          <li>Wähle <strong>Zum Home-Bildschirm</strong> und tippe auf <strong>Hinzufügen</strong>.</li>
+        </ol>
+      </details>
+      <button class="btn" data-action="again">Einführung nochmals ansehen</button>
+    </section>`;
+  view().onclick = (e) => {
+    if (e.target.closest('[data-action=again]')) { welcome = {}; location.hash = '#/welcome?again=1'; }
+  };
+}
+
+async function renderUpload() {
+  const year = await currentYear();
+  const folders = await foldersOf(year);
+  const groups = [];
+  for (const f of folders) {
+    const list = await docsOf(f.id);
+    if (list.length) groups.push({ f, list });
+  }
+  const all = groups.flatMap((g) => g.list);
+  const done = all.filter((d) => d.uploaded).length;
+  setHeader('Hochladen', { back: '#/' });
+  view().innerHTML = `
+    <section class="upsteps">
+      <strong>So lädst du die Belege hoch</strong>
+      <ol>
+        <li>Öffne die Online-Steuererklärung (Knopf unten) und melde dich an.</li>
+        <li>Gehe dort zu der Stelle, an der ein Beleg verlangt wird.</li>
+        <li>Tippe hier beim passenden Beleg auf <strong>PDF</strong> und speichere ihn mit «In Dateien sichern». Wähle ihn dann im Portal aus.</li>
+        <li>Setze hier den Haken, damit du nichts doppelt hochlädst.</li>
+      </ol>
+      <p class="muted small">Am Computer geht es einfacher: Speichere alle Belege als ZIP-Datei, entpacke sie und lade die PDFs hoch.</p>
+    </section>
+    <div class="upbtns">
+      <a class="btn primary" href="https://mein.ar.ch" target="_blank" rel="noopener">🌐 Online-Steuererklärung öffnen</a>
+      <button class="btn" data-action="zipOpen" ${all.length ? '' : 'disabled'}>⤓ Noch offene Belege als ZIP speichern</button>
+      <button class="btn" data-action="zipAll" ${all.length ? '' : 'disabled'}>⤓ Alle Belege als ZIP speichern</button>
+    </div>
+    ${all.length ? `<p><strong>${done} von ${all.length}</strong> Belegen hochgeladen.</p>` : '<div class="empty"><p>Du hast noch keine Belege gesammelt.<br>Tippe auf der Startseite auf <strong>Beleg scannen</strong>.</p><a class="btn" href="#/">Zur Startseite</a></div>'}
+    ${groups.map((g) => `
+      <h3 class="upfolder">${esc(g.f.icon || '📁')} ${esc(g.f.name)}</h3>
+      ${g.list.map((d) => `
+        <div class="uprow ${d.uploaded ? 'done' : ''}">
+          <label class="check"><input type="checkbox" data-doc="${d.id}" ${d.uploaded ? 'checked' : ''}><span><strong>${esc(d.title)}</strong><small>${d.kind === 'pdf' ? 'PDF' : plural(d.pages.length, 'Seite', 'Seiten')}${d.author ? ' · von ' + esc(d.author) : ''}</small></span></label>
+          <button class="btn small" data-action="pdf" data-doc="${d.id}">PDF</button>
+        </div>`).join('')}`).join('')}`;
+
+  view().onchange = async (e) => {
+    const cb = e.target.closest('input[data-doc]');
+    if (!cb) return;
+    const d = all.find((x) => x.id === cb.dataset.doc);
+    if (!d) return;
+    d.uploaded = cb.checked;
+    d.uploadedAt = cb.checked ? Date.now() : null;
+    d.updatedAt = Date.now();
+    await db.put('docs', d);
+    render();
+  };
+  view().onclick = async (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const a = btn.dataset.action;
+    if (a === 'zipOpen') await exportYearZip(year, true);
+    else if (a === 'zipAll') await exportYearZip(year, false);
+    else if (a === 'pdf') {
+      const d = all.find((x) => x.id === btn.dataset.doc);
+      const g = groups.find((x) => x.list.includes(d));
+      if (!d) return;
+      busy(true, 'PDF wird erstellt …');
+      try {
+        const pdf = await docToPdf(d);
+        await shareOrDownload(pdf, pdfName(year, g.f, d), d.title);
+      } finally { busy(false); }
+    }
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.4.0';
 async function render() {
   revokeUrls();
   $('#headerRight').onclick = null;
@@ -874,7 +1116,12 @@ async function render() {
   const parts = path.split('/').filter(Boolean);
   const params = new URLSearchParams(query);
   try {
-    if (parts[0] === 'f' && parts[1]) await renderFolder(parts[1]);
+    // Erster Start: Einführung zeigen (bestehende Installationen haben schon ein Jahr gespeichert)
+    if (parts[0] !== 'welcome' && !(await getSetting('onboarded')) && !(await getSetting('year'))) { location.hash = '#/welcome'; return; }
+    if (parts[0] === 'welcome') await renderWelcome(params);
+    else if (parts[0] === 'help') await renderHelp();
+    else if (parts[0] === 'upload') await renderUpload();
+    else if (parts[0] === 'f' && parts[1]) await renderFolder(parts[1]);
     else if (parts[0] === 'd' && parts[1]) await renderDoc(parts[1], params);
     else if (parts[0] === 'settings') await renderSettings();
     else await renderHome();
