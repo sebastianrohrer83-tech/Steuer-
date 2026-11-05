@@ -472,7 +472,7 @@ function refreshIfIdle() {
   const p = (location.hash.slice(1) || '/').split('/').filter(Boolean)[0];
   const sc = document.getElementById('scanner');
   if ($('#dlg').open || (sc && sc.classList.contains('show')) || !['f', 'upload', undefined].includes(p)) return;
-  render();
+  render(true);
 }
 async function quietSync() {
   if (autoSaving || quiet.running || !canWriteFolder()) return;
@@ -559,7 +559,6 @@ async function mergeSyncFiles(files) {
       const st = await mergeSyncFile(file);
       for (const k of Object.keys(total)) total[k] += st[k];
     }
-    await setSetting('lastSync', Date.now());
     toast(`Abgleich fertig (${files.length} Datei${files.length === 1 ? '' : 'en'}): ${total.added} neu, ${total.updated} aktualisiert, ${total.deleted} gelöscht${total.folders ? `, ${total.folders} Ordner` : ''}.`, 5000);
   } finally { busy(false); }
 }
@@ -1396,7 +1395,8 @@ async function renderUpload() {
 // Router
 // ---------------------------------------------------------------------------
 const APP_VERSION = '1.7.0';
-async function render() {
+async function render(keepScroll = false) {
+  const scrollY = window.scrollY;
   revokeUrls();
   $('#headerRight').onclick = null;
   const hash = location.hash.slice(1) || '/';
@@ -1417,10 +1417,10 @@ async function render() {
     console.error(err);
     view().innerHTML = `<div class="empty"><p>Fehler: ${esc(err.message)}</p><a class="btn" href="#/">Zur Startseite</a></div>`;
   }
-  window.scrollTo(0, 0);
+  window.scrollTo(0, keepScroll ? scrollY : 0);
 }
 
-window.addEventListener('hashchange', render);
+window.addEventListener('hashchange', () => render());
 if (canWriteFolder()) {
   setTimeout(quietSync, 1500);
   setInterval(() => { if (!document.hidden) quietSync(); }, 60000);
