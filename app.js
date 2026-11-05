@@ -25,11 +25,51 @@ const shortOf = (f) => (DEFAULT_BY_KEY[f.builtin] && DEFAULT_BY_KEY[f.builtin].s
 const examplesOf = (f) => (DEFAULT_BY_KEY[f.builtin] && DEFAULT_BY_KEY[f.builtin].examples) || [];
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
+const STORAGES = {
+  local: { icon: '👤', label: 'Nur ich', short: 'Nur dieses Handy', text: 'Die Belege liegen nur auf diesem Handy. Ich sichere sie ab und zu selbst.' },
+  icloud: { icon: '☁️', label: 'Familie mit iCloud Drive', short: 'Familie über iCloud Drive', text: 'Alle teilen einen Ordner in iCloud Drive.' },
+  gdrive: { icon: '📁', label: 'Familie mit Google Drive', short: 'Familie über Google Drive', text: 'Alle teilen einen Ordner in Google Drive. Geht auch mit Android.' },
+};
+
+function storageOptionsHtml(sel) {
+  return `<div class="opts">${Object.entries(STORAGES).map(([k, st]) => `
+    <button type="button" class="opt ${sel === k ? 'on' : ''}" data-action="pickStorage" data-s="${k}">
+      <span class="opt-i">${st.icon}</span>
+      <span class="opt-t"><strong>${st.label}</strong><small>${st.text}</small></span>
+      <span class="opt-c">${sel === k ? '✓' : ''}</span>
+    </button>`).join('')}</div>`;
+}
+
+function storageGuideHtml(kind) {
+  if (kind === 'icloud') {
+    return `<p><strong>So richtet ihr den gemeinsamen Ordner ein:</strong></p>
+      <ol class="steps">
+        <li><strong>Einmalig, eine Person:</strong> In der Dateien-App in <em>iCloud Drive</em> einen Ordner «Steuer» anlegen, gedrückt halten, «Teilen», «Zusammenarbeiten» und die Familie einladen (Bearbeiten erlauben).</li>
+        <li><strong>Jede Person:</strong> Unter Einstellungen auf <em>Meine Datei speichern</em> tippen, «In Dateien sichern» wählen und den Ordner «Steuer» in iCloud Drive auswählen.</li>
+        <li><strong>Zum Abgleich:</strong> <em>Dateien einlesen</em> tippen und im Ordner «Steuer» alle Dateien markieren.</li>
+      </ol>`;
+  }
+  if (kind === 'gdrive') {
+    return `<p><strong>So richtet ihr den gemeinsamen Ordner ein:</strong></p>
+      <ol class="steps">
+        <li><strong>Jede Person:</strong> Google-Drive-App installieren und in der Dateien-App unter «…», «Bearbeiten» den Eintrag «Drive» einschalten.</li>
+        <li><strong>Einmalig, eine Person:</strong> In Google Drive einen Ordner «Steuer» anlegen und mit den Google-Konten der Familie teilen (Bearbeiter).</li>
+        <li><strong>Jede Person:</strong> Unter Einstellungen auf <em>Meine Datei speichern</em> tippen, «In Dateien sichern» wählen und den Ordner «Steuer» in Drive auswählen.</li>
+        <li><strong>Zum Abgleich:</strong> <em>Dateien einlesen</em> tippen und im Ordner «Steuer» alle Dateien markieren.</li>
+      </ol>`;
+  }
+  return `<p>Deine Belege liegen auf diesem Handy. Damit nichts verloren geht, speichere ab und zu eine <strong>Sicherung</strong>:</p>
+    <ol class="steps">
+      <li>Unter Einstellungen auf <em>Meine Datei speichern</em> tippen.</li>
+      <li>«In Dateien sichern» wählen und die Datei an einem sicheren Ort ablegen, zum Beispiel in iCloud Drive.</li>
+    </ol>`;
+}
+
 const $ = (s, r = document) => r.querySelector(s);
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmtDate = (ts) => new Date(ts).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' });
-const fmtBytes = (b) => (b > 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.round(b / 1e3) + ' KB');
+const fmtBytes = (b) => (b > 1e9 ? (b / 1e9).toFixed(1) + ' GB' : b > 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.round(b / 1e3) + ' KB');
 const slug = (s) => String(s).replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue').replace(/ß/g, 'ss')
   .replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 60) || 'Dokument';
 
@@ -538,6 +578,7 @@ async function renderHome() {
   const first = docs.length === 0;
   const allUp = docs.length > 0 && uploaded === docs.length;
   const sync = await changesSinceSync();
+  const storage = await getSetting('storage', '');
   setHeader('Steuerordner', { right: `<a class="iconbtn" href="#/help" title="Hilfe" aria-label="Hilfe">?</a><a class="iconbtn" href="#/settings" title="Einstellungen" aria-label="Einstellungen">⚙︎</a>` });
   view().innerHTML = `
     <section class="stepcard">
@@ -545,6 +586,7 @@ async function renderHome() {
         <select id="yearSelect">${years.map((y) => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}<option value="__new">+ Anderes Jahr anlegen …</option></select>
       </label>
       <p class="muted small">Das Jahr, für das du die Steuererklärung ausfüllst.</p>
+      <a class="storeline" href="#/settings">📍 Speicherort: ${storage ? esc(STORAGES[storage].short) : 'noch nicht festgelegt, hier tippen'} ›</a>
       <ol class="stepper">
         <li class="${first ? 'now' : 'done'}"><b>${first ? '1' : '✓'}</b><span>Belege sammeln<small>${plural(docs.length, 'Beleg', 'Belege')} gesammelt</small></span></li>
         <li class="${allUp ? 'done' : (first ? '' : 'now')}"><b>${allUp ? '✓' : '2'}</b><span>Belege hochladen<small>${uploaded} von ${docs.length} hochgeladen</small></span></li>
@@ -796,10 +838,11 @@ async function renderSettings() {
   const scanMode = await getScanMode();
   const autoCap = await getSetting('autoCapture', true);
   const userName = await getSetting('userName', '');
-  let storage = '';
+  const storage = await getSetting('storage', '');
+  let storageInfo = '';
   if (navigator.storage && navigator.storage.estimate) {
     const e = await navigator.storage.estimate();
-    storage = `Belegt: ${fmtBytes(e.usage || 0)} von ca. ${fmtBytes(e.quota || 0)}`;
+    storageInfo = `Belegt: ${fmtBytes(e.usage || 0)} von ca. ${fmtBytes(e.quota || 0)}`;
   }
   const persisted = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : false;
   const sync = await changesSinceSync();
@@ -833,16 +876,13 @@ async function renderSettings() {
         <button class="btn" data-action="restoreDefaults">Fehlende Standardordner ergänzen (${year})</button>
       </div>
 
-      <h3>Gemeinsam mit der Familie</h3>
-      <p>Alle nutzen einen gemeinsamen Ordner in <strong>iCloud Drive</strong> oder <strong>Google Drive</strong>. <strong>Jede Person speichert ihre eigene Datei</strong> dort hinein, so überschreibt niemand die Arbeit der anderen. Beim Einlesen werden alle Dateien zusammengeführt, nichts wird doppelt angelegt.</p>
-      <ol class="steps">
-        <li><strong>Einmalig:</strong> In iCloud Drive oder Google Drive einen Ordner «Steuer» anlegen und mit der Familie teilen (Bearbeiter).</li>
-        <li><strong>Meine Datei speichern</strong>, dann «In Dateien sichern» und den Ordner «Steuer» wählen.</li>
-        <li><strong>Dateien einlesen</strong>, dann im Ordner «Steuer» <em>alle</em> Dateien markieren.</li>
-      </ol>
+      <h3>Speicherort und Familie</h3>
+      <p>Deine Belege liegen immer <strong>auf diesem Handy</strong>, in der App. Hier legst du fest, wie du sie sicherst und ob du sie mit der Familie teilst.</p>
+      ${storageOptionsHtml(storage)}
+      ${storage ? `<div class="guide">${storageGuideHtml(storage)}</div>` : '<p class="muted">Wähle oben deinen Speicherort.</p>'}
       <div class="row">
-        <button class="btn primary" data-action="syncLoad">⤒ Dateien einlesen</button>
-        <button class="btn" data-action="syncSave">⇪ Meine Datei speichern</button>
+        <button class="btn primary" data-action="syncSave">⇪ Meine Datei speichern</button>
+        <button class="btn" data-action="syncLoad">⤒ ${storage === 'local' || !storage ? 'Sicherung einlesen' : 'Dateien einlesen'}</button>
       </div>
       <p class="muted">${sync ? `Letzter Abgleich: ${new Date(sync.last).toLocaleString('de-CH')}${sync.n ? ` · ${sync.n} Änderung(en) seither` : ''}` : 'Noch kein Abgleich durchgeführt.'} Die Datei ist zugleich deine Sicherung.</p>
 
@@ -854,7 +894,7 @@ async function renderSettings() {
 
       <h3>Sicherheit deiner Daten</h3>
       <p class="muted">Diese App sendet keine Daten ins Internet. Scans, Ordner und Notizen bleiben auf diesem Gerät. Beim Teilen eines PDFs entscheidest du selbst, wohin es geht.</p>
-      <p class="muted">${esc(storage)}${persisted ? ' · Speicher ist dauerhaft geschützt' : ''}</p>
+      <p class="muted">${esc(storageInfo)}${persisted ? ' · Speicher ist dauerhaft geschützt' : ''}</p>
       ${!persisted && navigator.storage && navigator.storage.persist ? '<button class="btn" data-action="persist">Speicher dauerhaft schützen</button>' : ''}
       <p class="muted">Version ${APP_VERSION}</p>
     </section>`;
@@ -881,6 +921,9 @@ async function renderSettings() {
       for (const f of await db.getAllBy('folders', 'year', y)) await db.del('folders', f.id);
       await db.del('years', y);
       if (y === year) { const rest = years.filter((x) => x !== y); await setSetting('year', rest[0] || new Date().getFullYear()); }
+      render();
+    } else if (a === 'pickStorage') {
+      await setSetting('storage', btn.dataset.s);
       render();
     } else if (a === 'again') {
       welcome = {};
@@ -918,6 +961,7 @@ async function renderWelcome(params) {
     welcome = {
       init: true, step: 0,
       name: await getSetting('userName', ''),
+      storage: await getSetting('storage', 'local'),
       year: (await getSetting('year')) || (d.getMonth() < 6 ? d.getFullYear() - 1 : d.getFullYear()),
       again: !!params.get('again'),
     };
@@ -925,7 +969,7 @@ async function renderWelcome(params) {
   const w = welcome;
   const thisYear = new Date().getFullYear();
   setHeader('Willkommen', {});
-  const dots = [0, 1, 2].map((i) => `<span class="dot ${i === w.step ? 'on' : ''}"></span>`).join('');
+  const dots = [0, 1, 2, 3].map((i) => `<span class="dot ${i === w.step ? 'on' : ''}"></span>`).join('');
   let body = '';
   if (w.step === 0) {
     body = `
@@ -937,7 +981,7 @@ async function renderWelcome(params) {
         <li><b class="n">2</b><span><strong>Ordner wählen.</strong> Zum Beispiel «Lohn» oder «Krankenkasse».</span></li>
         <li><b class="n">3</b><span><strong>Hochladen.</strong> Die App hilft dir, die Belege in die Online-Steuererklärung zu übertragen.</span></li>
       </ul>
-      <p class="muted small">Alles bleibt auf deinem Handy. Es wird nichts ins Internet gesendet.</p>
+      <p class="muted small">Deine Belege liegen auf deinem Handy, in dieser App. Wenn du möchtest, teilst du sie mit der Familie. Das legst du gleich fest.</p>
       <div class="actions"><button class="btn primary huge" data-action="next">Los geht's</button></div>
       ${w.again ? '' : '<button class="skip" data-action="skip">Einführung überspringen</button>'}`;
   } else if (w.step === 1) {
@@ -955,11 +999,19 @@ async function renderWelcome(params) {
         </label>
       </div>
       <div class="actions"><button class="btn" data-action="back">Zurück</button><button class="btn primary" data-action="next">Weiter</button></div>`;
+  } else if (w.step === 2) {
+    body = `
+      <div class="bigicon">📍</div>
+      <h2>Wo liegen deine Belege?</h2>
+      <p class="lead">Deine Scans werden immer auf diesem Handy gespeichert. Hier legst du fest, ob du sie zusätzlich mit deiner Familie teilst.</p>
+      ${storageOptionsHtml(w.storage)}
+      <div class="actions"><button class="btn" data-action="back">Zurück</button><button class="btn primary" data-action="next">Weiter</button></div>`;
   } else {
     body = `
       <div class="bigicon">🎉</div>
       <h2>Alles bereit</h2>
       <p class="lead">Dein Steuerordner für ${esc(w.year)} ist angelegt, mit allen wichtigen Ordnern.</p>
+      <div class="guide"><p><strong>Dein Speicherort: ${esc(STORAGES[w.storage].short)}</strong></p>${storageGuideHtml(w.storage)}<p class="muted small">Das erledigst du später in Ruhe. Du findest alles unter Einstellungen, «Speicherort und Familie».</p></div>
       <ul class="points">
         <li><b class="n">💼</b><span><strong>Tipp zum Start:</strong> Beginne mit dem Lohnausweis. Tippe auf <em>Beleg scannen</em> und wähle <em>Lohn &amp; Einkommen</em>.</span></li>
         <li><b class="n">?</b><span><strong>Fragen?</strong> Oben rechts auf der Startseite findest du die Hilfe.</span></li>
@@ -973,6 +1025,7 @@ async function renderWelcome(params) {
     await ensureYear(year);
     await setSetting('year', year);
     if (welcome.name) await setSetting('userName', welcome.name);
+    await setSetting('storage', welcome.storage || 'local');
     await setSetting('onboarded', true);
     welcome = {};
     location.hash = '#/';
@@ -986,7 +1039,8 @@ async function renderWelcome(params) {
       if (y) w.year = Number(y.value);
       if (n) w.name = n.value.trim();
     }
-    if (a === 'next') { w.step++; renderWelcome(params); }
+    if (a === 'pickStorage') { w.storage = btn.dataset.s; renderWelcome(params); }
+    else if (a === 'next') { w.step++; renderWelcome(params); }
     else if (a === 'back') { w.step--; renderWelcome(params); }
     else if (a === 'skip' || a === 'finish') await finish();
   };
@@ -1018,8 +1072,11 @@ async function renderHelp() {
       <details><summary>Wie komme ich zur Online-Steuererklärung?</summary>
         <p>Tippe auf der Startseite auf <strong>Hochladen</strong>. Dort führt dich die App Schritt für Schritt und zeigt dir jeden Beleg als PDF.</p>
       </details>
+      <details><summary>Wo liegen meine Belege?</summary>
+        <p>Auf deinem Handy, in dieser App. Sie werden nicht ins Internet gesendet. Zusätzlich kannst du eine Sicherung oder einen gemeinsamen Ordner mit der Familie in iCloud Drive oder Google Drive nutzen. Das stellst du unter Einstellungen bei «Speicherort und Familie» ein.</p>
+      </details>
       <details><summary>Wie arbeiten wir zu zweit oder als Familie?</summary>
-        <p>Alle nutzen einen gemeinsamen Ordner in iCloud Drive oder Google Drive. Jede Person speichert ihre eigene Datei dort hinein und liest die Dateien der anderen ein. Die genauen Schritte stehen in den Einstellungen unter «Gemeinsam mit der Familie».</p>
+        <p>Alle nutzen einen gemeinsamen Ordner in iCloud Drive oder Google Drive. Jede Person speichert ihre eigene Datei dort hinein und liest die Dateien der anderen ein. Die genauen Schritte stehen unter Einstellungen bei «Speicherort und Familie».</p>
       </details>
       <details><summary>Sind meine Daten sicher? Kann etwas verloren gehen?</summary>
         <p>Die Belege bleiben auf deinem Gerät, die App sendet nichts ins Internet. Damit nichts verloren geht, installiere die App auf dem Home-Bildschirm und speichere ab und zu <strong>Meine Datei</strong> in den Einstellungen. Diese Datei ist deine Sicherung.</p>
@@ -1107,7 +1164,7 @@ async function renderUpload() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.5.0';
 async function render() {
   revokeUrls();
   $('#headerRight').onclick = null;

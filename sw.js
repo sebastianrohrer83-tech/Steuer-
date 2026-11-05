@@ -1,4 +1,4 @@
-const CACHE = 'steuerordner-v6';
+const CACHE = 'steuerordner-v7';
 const ASSETS = ['./', './index.html', './styles.css', './ui.css', './app.js', './db.js', './pdfwriter.js', './zip.js', './scan.js', './scanner.js', './install.js', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {

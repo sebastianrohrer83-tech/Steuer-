@@ -75,3 +75,18 @@ ol.bigsteps li { margin: 8px 0; color: var(--text); font-size: 1rem; }
 /* Lange Listen im Dialog: oben beginnen, damit der erste Eintrag erreichbar bleibt */
 .dlg-actions.column.folderpick { justify-content: flex-start; flex-wrap: nowrap; }
 .folderpick .btn { flex: none; }
+
+/* Speicherort wählen */
+.opts { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; text-align: left; }
+.opt { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; border: 2px solid var(--line); border-radius: 14px; background: var(--card); color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+.opt.on { border-color: var(--primary); background: #eef4ff; }
+@media (prefers-color-scheme: dark) { .opt.on { background: #1c2b4d; } }
+.opt-i { font-size: 1.8rem; }
+.opt-t { display: flex; flex-direction: column; flex: 1; }
+.opt-t small { color: var(--muted); font-weight: 400; font-size: .85rem; margin-top: 2px; }
+.opt-c { color: var(--primary); font-weight: 700; font-size: 1.2rem; width: 20px; text-align: center; }
+.guide { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; margin: 8px 0 12px; text-align: left; }
+.guide p { margin: 4px 0; }
+.guide ol { margin: 6px 0 4px; padding-left: 20px; }
+.guide li { margin: 6px 0; }
+.storeline { display: block; margin: 0 0 12px; font-size: .9rem; color: var(--primary); font-weight: 600; }
