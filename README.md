@@ -1,8 +1,8 @@
 # Steuerordner
 
 Private Web-App zum Scannen und Ablegen von Steuerbelegen – vorbereitet für die
-Online-Steuererklärung des Kantons Appenzell Ausserrhoden («Steuern AR Online»,
-Gemeinde Herisau).
+Online-Steuererklärung. Die Ordner und die Checkliste zeigen die typischen Unterlagen und sind für alle
+Kantone gleich. Es gibt keine Kantonswahl und keinen Link zu einem bestimmten Steuerportal.
 
 - Läuft komplett im Browser, ohne Server. Alle Scans bleiben auf dem Gerät.
 - Auf dem Handy installierbar (PWA, «Zum Home-Bildschirm hinzufügen»), funktioniert offline.
@@ -53,8 +53,7 @@ Jeder Ordner zeigt beim Öffnen einen Hinweistext «Was gehört hier hinein?», 
    - Ganzer Ordner: «ZIP».
    - Ganzes Jahr: Startseite → «Upload-Paket» (wahlweise nur die noch nicht hochgeladenen Belege).
      Das ZIP enthält pro Ordner einen Unterordner mit einem PDF pro Beleg und eine Übersichtsdatei.
-   - Im Portal [mein.ar.ch](https://mein.ar.ch) (Steuern AR Online) die PDFs bei den jeweiligen
-     Positionen als Beilage hochladen.
+   - Im Online-Portal deines Kantons die PDFs bei den jeweiligen Positionen als Beilage hochladen.
 5. **Hochgeladen markieren.** Häkchen im Dokument setzen (oder im Ordner-Menü «Alle als hochgeladen markieren»).
    Die Startseite zeigt den Fortschritt pro Ordner.
 

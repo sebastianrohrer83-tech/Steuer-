@@ -1663,7 +1663,7 @@ async function renderUpload() {
     <section class="upsteps">
       <strong>So lädst du die Belege hoch</strong>
       <ol>
-        <li>Öffne die Online-Steuererklärung (Knopf unten) und melde dich an.</li>
+        <li>Öffne die Online-Steuererklärung deines Kantons und melde dich an.</li>
         <li>Gehe dort zu der Stelle, an der ein Beleg verlangt wird.</li>
         <li>Tippe hier beim passenden Beleg auf <strong>PDF</strong> und speichere ihn mit «In Dateien sichern». Wähle ihn dann im Portal aus.</li>
         <li>Setze hier den Haken, damit du nichts doppelt hochlädst.</li>
@@ -1671,8 +1671,7 @@ async function renderUpload() {
       <p class="muted small">Am Computer geht es einfacher: Speichere alle Belege als ZIP-Datei, entpacke sie und lade die PDFs hoch.</p>
     </section>
     <div class="upbtns">
-      <a class="btn primary" href="https://mein.ar.ch" target="_blank" rel="noopener">🌐 Online-Steuererklärung öffnen</a>
-      <button class="btn" data-action="zipOpen" ${all.length ? '' : 'disabled'}>⤓ Noch offene Belege als ZIP speichern</button>
+      <button class="btn primary" data-action="zipOpen" ${all.length ? '' : 'disabled'}>⤓ Noch offene Belege als ZIP speichern</button>
       <button class="btn" data-action="zipAll" ${all.length ? '' : 'disabled'}>⤓ Alle Belege als ZIP speichern</button>
       <a class="btn" href="#/summary">🧾 Zahlen fürs Portal</a>
     </div>
@@ -1820,7 +1819,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.9.0';
+const APP_VERSION = '1.9.1';
 async function render(keepScroll = false) {
   const scrollY = window.scrollY;
   revokeUrls();
