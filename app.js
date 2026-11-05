@@ -155,9 +155,11 @@ async function createDefaultFolders(year, onlyMissing = false) {
   let created = 0;
   for (const [i, f] of DEFAULT_FOLDERS.entries()) {
     if (onlyMissing && have.has(f.key)) continue;
-    await db.put('folders', { id: builtinId(year, f.key), year, name: f.name, icon: f.icon, hint: f.hint, order: onlyMissing ? order++ : i, builtin: f.key, createdAt: Date.now() });
+    // updatedAt 0: unveränderte Standardordner sind überall gleich; Umbenennen setzt die Zeit.
+    await db.put('folders', { id: builtinId(year, f.key), year, name: f.name, icon: f.icon, hint: f.hint, order: onlyMissing ? order++ : i, builtin: f.key, createdAt: Date.now(), updatedAt: onlyMissing ? Date.now() : 0 });
     created++;
   }
+  if (onlyMissing && created) await clearTombstones(DEFAULT_FOLDERS.map((f) => 'f:' + builtinId(year, f.key)));
   return created;
 }
 
@@ -185,11 +187,19 @@ async function markDeleted(ids) {
   for (const id of ids) t[id] = now;
   await setSetting('tombstones', t);
 }
+async function clearTombstones(keys) {
+  const t = await getTombstones();
+  let changed = false;
+  for (const k of keys) if (k in t) { delete t[k]; changed = true; }
+  if (changed) await setSetting('tombstones', t);
+}
 async function deleteDoc(id) { await db.del('docs', id); await markDeleted([id]); }
+const folderKey = (id) => 'f:' + id; // Löschmarken für Ordner und Jahre: «f:<id>», «y:<Jahr>»
 
 async function ensureYear(year) {
   if (!(await db.get('years', year))) {
     await db.put('years', { year, createdAt: Date.now() });
+    await clearTombstones(['y:' + year]);
     await createDefaultFolders(year);
   }
 }
@@ -256,12 +266,14 @@ function download(blob, name) {
   a.click();
   a.remove();
 }
+// Ergebnis: true = geteilt oder heruntergeladen, false = abgebrochen
 async function shareOrDownload(blob, name, title) {
   const file = new File([blob], name, { type: blob.type });
   if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: title || name }); return; } catch (e) { if (e.name === 'AbortError') return; }
+    try { await navigator.share({ files: [file], title: title || name }); return true; } catch (e) { if (e.name === 'AbortError') return false; }
   }
   download(blob, name);
+  return true;
 }
 const pdfName = (year, folder, doc) => `${year}_${slug(folder.name)}_${slug(doc.title)}.pdf`;
 
@@ -312,7 +324,14 @@ async function exportYearZip(year, onlyNotUploaded) {
   } finally { busy(false); }
 }
 
-const syncFileName = (name) => (name ? `Steuerordner_Sync_${slug(name)}.zip` : 'Steuerordner_Sync.zip');
+// Jedes Gerät schreibt nur seine eigene Datei (Name + Gerätekürzel). So überschreiben sich zwei Geräte derselben Person nie.
+const syncFileName = (name, dev) => `Steuerordner_Sync_${name ? slug(name) : 'Geraet'}${dev ? '_' + dev : ''}.zip`;
+async function getDeviceId() {
+  let d = await getSetting('deviceId', '');
+  if (!d) { d = Math.random().toString(36).slice(2, 6).padEnd(4, '0'); await setSetting('deviceId', d); }
+  return d;
+}
+async function ownSyncName() { return syncFileName(await ensureUserName(), await getDeviceId()); }
 
 // Name der Person an diesem Gerät (Haushalt): wird bei neuen Dokumenten gespeichert und im Dateinamen verwendet.
 async function ensureUserName() {
@@ -349,30 +368,39 @@ async function buildSyncZip() {
   return zip.finish();
 }
 
-// Sync-Datei speichern: auf dem Handy über das Teilen-Menü («In Dateien sichern» → iCloud Drive),
-// am Computer als Download in den iCloud-Drive-Ordner.
+// Sync-Datei von Hand speichern (Einstellungen): Teilen-Menü bzw. Download.
 async function saveSyncFile(share) {
-  const user = await ensureUserName();
-  const fname = syncFileName(user);
+  const fname = await ownSyncName();
   busy(true, 'Sync-Datei wird erstellt …');
   try {
+    const t0 = Date.now();
     const blob = await buildSyncZip();
-    if (share) await shareOrDownload(blob, fname, 'Steuerordner Sync-Datei'); else download(blob, fname);
-    await setSetting('lastSync', Date.now());
-    toast(`Datei «${fname}» erstellt. Im geteilten Ordner ablegen und die alte Datei ersetzen.`, 4500);
+    let done = true;
+    if (share) done = await shareOrDownload(blob, fname, 'Steuerordner Sync-Datei'); else download(blob, fname);
+    if (done) {
+      await setSetting('lastSync', t0);
+      toast(`Datei «${fname}» erstellt. Im geteilten Ordner ablegen und die alte Version ersetzen.`, 4500);
+    }
   } finally { busy(false); }
 }
 
-// Automatisch speichern («Jetzt speichern»):
-// - Chrome/Android/Computer: Der Ordner (z. B. in Google Drive oder iCloud Drive) wird einmal gewählt und danach
-//   direkt beschrieben. Dateien der anderen Personen im Ordner werden dabei gleich eingelesen.
-// - iPhone/iPad (Safari kann keinen Ordner dauerhaft beschreiben): ein Fingertipp, dann «In Dateien sichern».
+// ---------------------------------------------------------------------------
+// «Jetzt speichern»: Abgleich mit der Familie über den gemeinsamen Ordner
+// - Chrome (Android/Computer): Ordner einmal wählen. Danach liest und schreibt die App dort direkt. Solange die
+//   Erlaubnis des Browsers gilt, gleicht sie sich auch von selbst ab (beim Öffnen, jede Minute, beim Verlassen).
+// - iPhone/iPad: Safari darf keinen Ordner dauerhaft beschreiben. Dort führt ein Assistent in zwei Schritten
+//   durch «Dateien der anderen einlesen» und «Meine Datei sichern».
+// ---------------------------------------------------------------------------
 const canWriteFolder = () => typeof window.showDirectoryPicker === 'function';
+const quiet = { running: false };
 let autoSaving = false;
+const seenFiles = new Map(); // Dateiname -> «Grösse:Änderungszeit»: unveränderte Dateien nicht nochmals einlesen
+const SYNC_NAME = /^Steuerordner_Sync.*\.zip$/i;
 
-async function folderAccess(dir) {
+async function folderAccess(dir, ask = true) {
   const opt = { mode: 'readwrite' };
   if ((await dir.queryPermission(opt)) === 'granted') return true;
+  if (!ask) return false;
   return (await dir.requestPermission(opt)) === 'granted';
 }
 
@@ -386,7 +414,40 @@ async function pickSyncFolder(storage) {
   const dir = await window.showDirectoryPicker({ id: 'steuerordner', mode: 'readwrite' });
   await setSetting('syncDir', dir);
   await setSetting('syncDirName', dir.name);
+  seenFiles.clear();
   return dir;
+}
+
+// Liest die Dateien der anderen Geräte im Ordner ein und schreibt danach die eigene Datei.
+async function syncWithFolder(dir, { force = false } = {}) {
+  const fname = await ownSyncName();
+  const total = { added: 0, updated: 0, deleted: 0, folders: 0 };
+  let skipped = 0;
+  for await (const [name, h] of dir.entries()) {
+    if (h.kind !== 'file' || name === fname || !SYNC_NAME.test(name)) continue;
+    try {
+      const file = await h.getFile();
+      const sig = `${file.size}:${file.lastModified}`;
+      if (!force && seenFiles.get(name) === sig) continue;
+      const st = await mergeSyncFile(file);
+      seenFiles.set(name, sig);
+      for (const k of Object.keys(total)) total[k] += st[k];
+    } catch { skipped++; }
+  }
+  const got = total.added + total.updated + total.deleted + total.folders;
+  const ch = await changesSinceSync();
+  let wrote = false;
+  if (force || got || !ch || ch.n) {
+    const t0 = Date.now();
+    const blob = await buildSyncZip();
+    const w = await (await dir.getFileHandle(fname, { create: true })).createWritable();
+    await w.write(blob);
+    await w.close();
+    await setSetting('lastSync', t0);
+    wrote = true;
+  }
+  await setSetting('syncDirName', dir.name);
+  return { got, skipped, wrote, total };
 }
 
 async function saveToFolder(storage) {
@@ -397,30 +458,78 @@ async function saveToFolder(storage) {
     dir = await pickSyncFolder(storage);
     if (!dir) return;
   }
-  const user = await ensureUserName();
-  const fname = syncFileName(user);
-  busy(true, 'Wird gespeichert …');
+  await ensureUserName();
+  busy(true, 'Wird abgeglichen …');
   try {
-    // 1. Dateien der anderen Personen einlesen
-    const total = { added: 0, updated: 0, deleted: 0, folders: 0 };
-    let skipped = 0;
-    for await (const [name, h] of dir.entries()) {
-      if (h.kind !== 'file' || name === fname || !/^Steuerordner_Sync.*\.zip$/i.test(name)) continue;
-      try {
-        const st = await mergeSyncFile(await h.getFile());
-        for (const k of Object.keys(total)) total[k] += st[k];
-      } catch { skipped++; }
-    }
-    // 2. Eigene Datei schreiben (enthält jetzt alles)
-    const blob = await buildSyncZip();
-    const w = await (await dir.getFileHandle(fname, { create: true })).createWritable();
-    await w.write(blob);
-    await w.close();
-    await setSetting('lastSync', Date.now());
-    await setSetting('syncDirName', dir.name);
-    const got = total.added + total.updated + total.deleted;
-    toast(`✓ Gespeichert im Ordner «${dir.name}».${got ? ` Von den anderen übernommen: ${got} Änderung${got === 1 ? '' : 'en'}.` : ''}${skipped ? ` ${skipped} Datei(en) konnten nicht gelesen werden.` : ''}`, 5000);
+    while (quiet.running) await new Promise((r) => setTimeout(r, 150));
+    const r = await syncWithFolder(dir, { force: true });
+    toast(`✓ Abgeglichen mit dem Ordner «${dir.name}».${r.got ? ` Von den anderen übernommen: ${r.got} Änderung${r.got === 1 ? '' : 'en'}.` : ' Bei den anderen gibt es nichts Neues.'}${r.skipped ? ` ${r.skipped} Datei(en) konnten nicht gelesen werden.` : ''}`, 5500);
   } finally { busy(false); }
+}
+
+// Hintergrund-Abgleich: nur wenn der Browser die Erlaubnis noch hat (sonst genügt ein Tipp auf «Jetzt speichern»).
+function refreshIfIdle() {
+  const p = (location.hash.slice(1) || '/').split('/').filter(Boolean)[0];
+  const sc = document.getElementById('scanner');
+  if ($('#dlg').open || (sc && sc.classList.contains('show')) || !['f', 'upload', undefined].includes(p)) return;
+  render();
+}
+async function quietSync() {
+  if (autoSaving || quiet.running || !canWriteFolder()) return;
+  quiet.running = true;
+  try {
+    const dir = await getSetting('syncDir', null);
+    if (!dir || !(await getSetting('storage', '')) || !(await getSetting('userName', ''))) return;
+    if (!(await folderAccess(dir, false))) return;
+    const r = await syncWithFolder(dir);
+    if (r.got) toast(`Neues von der Familie übernommen: ${r.got} Änderung${r.got === 1 ? '' : 'en'}.`, 4000);
+    if (r.got || r.wrote) refreshIfIdle();
+  } catch (e) { console.warn('Hintergrund-Abgleich:', e); } finally { quiet.running = false; }
+}
+
+// iPhone/iPad: Assistent mit zwei Schritten
+async function syncViaFiles() {
+  const user = await ensureUserName();
+  const fname = syncFileName(user, await getDeviceId());
+  let t0 = 0, blob = null, blobP = null;
+  const build = () => { t0 = Date.now(); blobP = buildSyncZip(); return blobP; };
+  build();
+  const res = dialog(`
+    <h2>Abgleich mit der Familie</h2>
+    <p><strong>Schritt 1:</strong> Hole die Änderungen der anderen. Tippe auf «Dateien wählen», öffne den gemeinsamen Ordner und markiere <em>alle</em> Dateien. Überspringe den Schritt, wenn du allein arbeitest.</p>
+    <label class="btn filebtn">📂 Dateien wählen<input type="file" id="wizFiles" accept=".zip,application/zip" multiple hidden></label>
+    <p id="wizState" class="muted small">Noch nichts gewählt.</p>
+    <p><strong>Schritt 2:</strong> Sichere deine Datei im selben Ordner. Ersetze dabei die ältere Datei «${esc(fname)}».</p>
+    <div class="dlg-actions column"><button type="button" data-value="save" class="btn primary" disabled>Wird vorbereitet …</button><button type="button" data-value="cancel" class="btn ghost">Abbrechen</button></div>`);
+  const d = $('#dlg');
+  const state = d.querySelector('#wizState'), saveBtn = d.querySelector('[data-value=save]'), pick = d.querySelector('#wizFiles');
+  const prep = () => {
+    saveBtn.disabled = true; saveBtn.textContent = 'Wird vorbereitet …'; blob = null;
+    const mine = blobP;
+    mine.then((b) => { if (mine !== blobP) return; blob = b; saveBtn.disabled = false; saveBtn.textContent = '💾 Meine Datei sichern'; });
+  };
+  prep();
+  pick.onchange = async () => {
+    const files = [...pick.files];
+    if (!files.length) return;
+    state.textContent = 'Wird eingelesen …';
+    saveBtn.disabled = true;
+    const total = { added: 0, updated: 0, deleted: 0, folders: 0 };
+    let bad = 0;
+    for (const f of files) {
+      try { const st = await mergeSyncFile(f); for (const k of Object.keys(total)) total[k] += st[k]; } catch { bad++; }
+    }
+    const got = total.added + total.updated + total.deleted + total.folders;
+    state.textContent = `✓ ${files.length} Datei${files.length === 1 ? '' : 'en'} gelesen: ${total.added} neu, ${total.updated} aktualisiert, ${total.deleted} gelöscht${bad ? `, ${bad} nicht lesbar` : ''}.`;
+    build(); prep();
+    if (got) refreshIfIdle();
+  };
+  if ((await res) !== 'save' || !blob) return;
+  const done = await shareOrDownload(blob, fname, 'Steuerordner Sync-Datei');
+  if (done) {
+    await setSetting('lastSync', t0);
+    toast(`✓ «${fname}» gesichert. Die anderen lesen sie beim nächsten Abgleich ein.`, 5000);
+  }
 }
 
 async function autoSave() {
@@ -430,9 +539,9 @@ async function autoSave() {
     const storage = await getSetting('storage', '');
     if (!storage) { toast('Lege zuerst den Speicherort fest.'); location.hash = '#/settings'; return; }
     if (canWriteFolder()) await saveToFolder(storage);
-    else await saveSyncFile(true);
+    else await syncViaFiles();
   } catch (err) {
-    if (!err || err.name !== 'AbortError') toast('Speichern hat nicht geklappt: ' + ((err && err.message) || err), 6000);
+    if (!err || err.name !== 'AbortError') toast('Der Abgleich hat nicht geklappt: ' + ((err && err.message) || err), 6000);
   } finally {
     autoSaving = false;
     render();
@@ -465,24 +574,37 @@ async function mergeSyncFile(file) {
     const byName = new Map(entries.map((e) => [e.name, e.data]));
     const stats = { added: 0, updated: 0, deleted: 0, folders: 0 };
 
-    for (const y of manifest.years || []) if (!(await db.get('years', y.year))) await db.put('years', y);
+    const localTomb = await getTombstones();
+    const remoteTomb = manifest.tombstones || {};
+
+    for (const y of manifest.years || []) {
+      if (localTomb['y:' + y.year] && localTomb['y:' + y.year] >= (y.createdAt || 0)) continue; // Jahr hier gelöscht
+      if (!(await db.get('years', y.year))) await db.put('years', y);
+    }
 
     const localFolders = await db.getAll('folders');
     const folderMap = new Map(); // ID aus der Datei → lokale ID
     for (const f of manifest.folders || []) {
+      const dead = localTomb[folderKey(f.id)];
+      if (dead && dead >= (f.updatedAt || 0)) continue; // Ordner hier gelöscht: Dokumente darin werden übersprungen
       let match = localFolders.find((l) => l.id === f.id);
       if (!match && f.builtin) match = localFolders.find((l) => l.year === f.year && l.builtin === f.builtin);
       if (!match) match = localFolders.find((l) => l.year === f.year && l.name.trim().toLowerCase() === String(f.name).trim().toLowerCase());
-      if (match) { folderMap.set(f.id, match.id); continue; }
+      if (match) {
+        folderMap.set(f.id, match.id);
+        if ((f.updatedAt || 0) > (match.updatedAt || 0)) { // Umbenennen, Symbol, Hinweistext: neuere Fassung gewinnt
+          Object.assign(match, { name: f.name, icon: f.icon, hint: f.hint, updatedAt: f.updatedAt });
+          await db.put('folders', match);
+          stats.folders++;
+        }
+        continue;
+      }
       const nf = f.builtin ? { ...f, id: builtinId(f.year, f.builtin) } : { ...f };
       await db.put('folders', nf);
       localFolders.push(nf);
       folderMap.set(f.id, nf.id);
       stats.folders++;
     }
-
-    const localTomb = await getTombstones();
-    const remoteTomb = manifest.tombstones || {};
     for (const d of manifest.docs || []) {
       const delAt = localTomb[d.id];
       if (delAt && delAt >= (d.updatedAt || d.createdAt || 0)) continue; // hier gelöscht, dort älter
@@ -490,7 +612,9 @@ async function mergeSyncFile(file) {
       if (existing && (existing.updatedAt || existing.createdAt || 0) >= (d.updatedAt || d.createdAt || 0)) continue;
       const doc = { ...d };
       delete doc.files;
-      doc.folderId = folderMap.get(d.folderId) || d.folderId;
+      const fid = folderMap.get(d.folderId) || ((await db.get('folders', d.folderId)) ? d.folderId : null);
+      if (!fid) continue; // Ordner existiert hier nicht mehr
+      doc.folderId = fid;
       if (d.kind === 'pdf') {
         const data = byName.get(d.files[0] && d.files[0].name);
         if (!data) continue;
@@ -508,9 +632,25 @@ async function mergeSyncFile(file) {
     }
 
     for (const [id, delAt] of Object.entries(remoteTomb)) {
+      if (!localTomb[id] || localTomb[id] < delAt) localTomb[id] = delAt;
+      if (id.includes(':')) continue; // Ordner und Jahre: unten
       const local = await db.get('docs', id);
       if (local && (local.updatedAt || local.createdAt || 0) < delAt) { await db.del('docs', id); stats.deleted++; }
-      if (!localTomb[id] || localTomb[id] < delAt) localTomb[id] = delAt;
+    }
+    // Gelöschte Ordner und Jahre übernehmen, sofern hier keine Dokumente mehr darin liegen
+    for (const [key, delAt] of Object.entries(remoteTomb)) {
+      if (key.startsWith('f:')) {
+        const f = await db.get('folders', key.slice(2));
+        if (f && (f.updatedAt || 0) < delAt && !(await db.getAllBy('docs', 'folderId', f.id)).length) { await db.del('folders', f.id); stats.deleted++; }
+      } else if (key.startsWith('y:')) {
+        const yr = Number(key.slice(2));
+        const y = await db.get('years', yr);
+        if (y && (y.createdAt || 0) < delAt && !(await db.getAllBy('docs', 'year', yr)).length) {
+          for (const f of await db.getAllBy('folders', 'year', yr)) await db.del('folders', f.id);
+          await db.del('years', yr);
+          stats.deleted++;
+        }
+      }
     }
     await setSetting('tombstones', localTomb);
     return stats;
@@ -522,7 +662,8 @@ async function changesSinceSync() {
   if (!last) return null;
   const docs = await db.getAll('docs');
   const t = await getTombstones();
-  const n = docs.filter((d) => (d.updatedAt || d.createdAt) > last).length + Object.values(t).filter((x) => x > last).length;
+  const folders = await db.getAll('folders');
+  const n = docs.filter((d) => (d.updatedAt || d.createdAt) > last).length + folders.filter((f) => (f.updatedAt || 0) > last).length + Object.values(t).filter((x) => x > last).length;
   return { last, n };
 }
 
@@ -656,6 +797,8 @@ async function renderHome() {
   const sync = await changesSinceSync();
   const storage = await getSetting('storage', '');
   const dirName = canWriteFolder() ? await getSetting('syncDirName', '') : '';
+  let live = false;
+  if (dirName) { try { live = await (await getSetting('syncDir', null)).queryPermission({ mode: 'readwrite' }) === 'granted'; } catch { live = false; } }
   setHeader('Steuerordner', { right: `<a class="iconbtn" href="#/help" title="Hilfe" aria-label="Hilfe">?</a><a class="iconbtn" href="#/settings" title="Einstellungen" aria-label="Einstellungen">⚙︎</a>` });
   view().innerHTML = `
     <section class="stepcard">
@@ -671,7 +814,7 @@ async function renderHome() {
     </section>
     ${storage ? `<section class="savecard ${!sync || sync.n ? 'pending' : ''}">
       <button class="btn ${!sync || sync.n ? 'primary' : ''} big wide" data-action="autoSave">💾 Jetzt speichern</button>
-      <p class="muted small">${sync ? `Zuletzt gespeichert: ${new Date(sync.last).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' })}${sync.n ? ` · ${sync.n} Änderung${sync.n === 1 ? '' : 'en'} noch nicht gesichert` : ' · alles gesichert ✓'}` : 'Noch nie gespeichert.'} ${canWriteFolder() ? (dirName ? `Ordner: «${esc(dirName)}».` : 'Beim ersten Mal wählst du den Ordner aus.') : 'Danach «In Dateien sichern» wählen.'}</p>
+      <p class="muted small">${sync ? `Zuletzt gespeichert: ${new Date(sync.last).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' })}${sync.n ? ` · ${sync.n} Änderung${sync.n === 1 ? '' : 'en'} noch nicht gesichert` : ' · alles gesichert ✓'}` : 'Noch nie gespeichert.'} ${canWriteFolder() ? (dirName ? `Ordner «${esc(dirName)}»${live ? ': wird automatisch abgeglichen ✓' : ': tippe auf den Knopf, um den automatischen Abgleich zu starten.'}` : 'Beim ersten Mal wählst du den Ordner aus.') : 'Eine kurze Anleitung führt dich durch den Abgleich.'}</p>
     </section>` : ''}
     ${first ? `<section class="tipcard"><strong>So fängst du an</strong><ol>
       <li>Tippe unten auf <b>Beleg scannen</b>.</li>
@@ -713,7 +856,7 @@ async function renderHome() {
     else if (a === 'newFolder') {
       const name = await promptDlg('Eigener Ordner', 'Wie soll der Ordner heissen?', '', 'Anlegen');
       if (!name) return;
-      await db.put('folders', { id: uid(), year, name, icon: '📁', hint: '', order: folders.length + 1, createdAt: Date.now() });
+      await db.put('folders', { id: uid(), year, name, icon: '📁', hint: '', order: folders.length + 1, createdAt: Date.now(), updatedAt: Date.now() });
       render();
     } else if (a === 'quickScan' || a === 'quickPick') {
       const f = await chooseFolder(year);
@@ -763,14 +906,14 @@ async function renderFolder(folderId) {
           <button type="button" data-value="cancel" class="btn ghost">Abbrechen</button></div>`);
       if (r === 'rename') {
         const n = await promptDlg('Ordner umbenennen', 'Name', folder.name);
-        if (n) { folder.name = n; await db.put('folders', folder); render(); }
+        if (n) { folder.name = n; folder.updatedAt = Date.now(); await db.put('folders', folder); render(); }
       } else if (r === 'hint') {
         const res = await dialog(`<h2>Hinweistext</h2><label>Was gehört in diesen Ordner?<textarea name="v" rows="5">${esc(folder.hint || '')}</textarea></label>
           <div class="dlg-actions"><button type="button" data-value="cancel" class="btn">Abbrechen</button><button type="submit" class="btn primary">Speichern</button></div>`);
-        if (res) { folder.hint = res.v.trim(); await db.put('folders', folder); render(); }
+        if (res) { folder.hint = res.v.trim(); folder.updatedAt = Date.now(); await db.put('folders', folder); render(); }
       } else if (r === 'icon') {
         const n = await promptDlg('Symbol', 'Emoji oder kurzes Zeichen', folder.icon || '📁');
-        if (n) { folder.icon = n.slice(0, 4); await db.put('folders', folder); render(); }
+        if (n) { folder.icon = n.slice(0, 4); folder.updatedAt = Date.now(); await db.put('folders', folder); render(); }
       } else if (r === 'zip') {
         await exportFolderZip(year, folder);
       } else if (r === 'markAll') {
@@ -779,7 +922,7 @@ async function renderFolder(folderId) {
       } else if (r === 'delete') {
         const ok = await confirmDlg('Ordner löschen?', docs.length ? `Der Ordner enthält ${docs.length} Dokument(e). Diese werden unwiderruflich gelöscht.` : 'Der Ordner wird gelöscht.');
         if (!ok) return;
-        await markDeleted(docs.map((d) => d.id));
+        await markDeleted([...docs.map((d) => d.id), folderKey(folder.id)]);
         for (const d of docs) await db.del('docs', d.id);
         await db.del('folders', folder.id);
         location.hash = '#/';
@@ -999,9 +1142,10 @@ async function renderSettings() {
       const y = Number(btn.dataset.year);
       const docs = await db.getAllBy('docs', 'year', y);
       if (!(await confirmDlg(`Steuerjahr ${y} löschen?`, `Alle Ordner und ${docs.length} Dokument(e) dieses Jahres werden unwiderruflich gelöscht.`))) return;
-      await markDeleted(docs.map((d) => d.id));
+      const yf = await db.getAllBy('folders', 'year', y);
+      await markDeleted([...docs.map((d) => d.id), ...yf.map((f) => folderKey(f.id)), 'y:' + y]);
       for (const d of docs) await db.del('docs', d.id);
-      for (const f of await db.getAllBy('folders', 'year', y)) await db.del('folders', f.id);
+      for (const f of yf) await db.del('folders', f.id);
       await db.del('years', y);
       if (y === year) { const rest = years.filter((x) => x !== y); await setSetting('year', rest[0] || new Date().getFullYear()); }
       render();
@@ -1163,7 +1307,7 @@ async function renderHelp() {
         <p>Auf deinem Handy, in dieser App. Sie werden nicht ins Internet gesendet. Zusätzlich kannst du eine Sicherung oder einen gemeinsamen Ordner mit der Familie in iCloud Drive oder Google Drive nutzen. Das stellst du unter Einstellungen bei «Speicherort und Familie» ein.</p>
       </details>
       <details><summary>Wie arbeiten wir zu zweit oder als Familie?</summary>
-        <p>Alle nutzen einen gemeinsamen Ordner in iCloud Drive oder Google Drive. Jede Person speichert ihre eigene Datei dort hinein und liest die Dateien der anderen ein. Die genauen Schritte stehen unter Einstellungen bei «Speicherort und Familie».</p>
+        <p>Alle nutzen einen gemeinsamen Ordner in iCloud Drive oder Google Drive. Jedes Gerät speichert seine eigene Datei dort hinein und liest die Dateien der anderen ein. Das erledigt der Knopf «Jetzt speichern». Die genauen Schritte stehen unter Einstellungen bei «Speicherort und Familie».</p>
       </details>
       <details><summary>Sind meine Daten sicher? Kann etwas verloren gehen?</summary>
         <p>Die Belege bleiben auf deinem Gerät, die App sendet nichts ins Internet. Damit nichts verloren geht, installiere die App auf dem Home-Bildschirm und speichere ab und zu <strong>Meine Datei</strong> in den Einstellungen. Diese Datei ist deine Sicherung.</p>
@@ -1251,7 +1395,7 @@ async function renderUpload() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.7.0';
 async function render() {
   revokeUrls();
   $('#headerRight').onclick = null;
@@ -1277,6 +1421,11 @@ async function render() {
 }
 
 window.addEventListener('hashchange', render);
+if (canWriteFolder()) {
+  setTimeout(quietSync, 1500);
+  setInterval(() => { if (!document.hidden) quietSync(); }, 60000);
+  document.addEventListener('visibilitychange', quietSync);
+}
 $('#backBtn').addEventListener('click', () => { location.hash = $('#backBtn').dataset.href || '#/'; });
 render();
 

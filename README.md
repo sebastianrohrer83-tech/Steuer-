@@ -86,22 +86,29 @@ Die App hat keinen Server. Alle im Haushalt nutzen einen gemeinsamen Ordner in i
    «Zusammenarbeiten» → Personen aus dem Haushalt einladen.
 2. In der App unter **Einstellungen** den eigenen **Namen** eintragen.
 3. **Jetzt speichern** (Knopf auf der Startseite, sobald der Speicherort festgelegt ist):
-   - *Chrome auf Android oder am Computer:* Beim ersten Mal den Ordner «Steuer» wählen. Danach schreibt die App
-     `Steuerordner_Sync_<Name>.zip` direkt dorthin und liest dabei gleich die Dateien der anderen ein. Nach einem
-     Neustart des Browsers fragt dieser einmal nach der Erlaubnis.
-   - *iPhone/iPad (Safari):* Safari kann keinen Ordner dauerhaft beschreiben. Der Knopf öffnet das Teilen-Menü,
-     dort «In Dateien sichern» → Ordner «Steuer», die ältere Datei ersetzen.
-4. **Dateien einlesen** (nur iPhone nötig, Einstellungen): Im Ordner «Steuer» *alle* Dateien markieren. Die App führt sie zusammen.
+   - *Chrome auf Android oder am Computer:* Beim ersten Mal den Ordner «Steuer» wählen. Danach liest die App dort die
+     Dateien der anderen Geräte ein und schreibt ihre eigene Datei. Solange der Browser die Erlaubnis noch hat, geschieht
+     das auch von selbst: beim Öffnen, jede Minute und beim Verlassen der App. Nach einem Neustart des Browsers genügt
+     ein Tipp auf den Knopf.
+   - *iPhone/iPad (Safari):* Safari kann keinen Ordner dauerhaft beschreiben. Der Knopf öffnet einen Assistenten:
+     Schritt 1 «Dateien wählen» (im Ordner alle Dateien markieren), Schritt 2 «Meine Datei sichern» («In Dateien
+     sichern» → Ordner «Steuer», ältere Datei ersetzen). Erst nach Schritt 2 gilt der Stand als gesichert.
 
-Jede Person überschreibt nur die eigene Datei, deshalb gehen keine Änderungen verloren, auch wenn mehrere gleichzeitig
-arbeiten. Beim Zusammenführen gilt:
+Jedes Gerät schreibt nur **seine eigene** Datei `Steuerordner_Sync_<Name>_<Gerätekürzel>.zip`. Deshalb überschreiben sich
+auch zwei Geräte mit demselben Namen nie, und es gehen keine Änderungen verloren, wenn mehrere gleichzeitig arbeiten.
+Beim Zusammenführen gilt:
 
 - Dokumente mit gleicher ID: die neuere Version gewinnt (Titel, Notiz, Status «hochgeladen»).
-- Gelöschte Dokumente werden auf allen Geräten entfernt und kommen auch aus alten Dateien nicht zurück.
-- Standardordner sind auf allen Geräten identisch, eigene Ordner werden über Jahr und Name erkannt. Es entstehen keine Duplikate.
+- Gelöschte Dokumente, Ordner und Steuerjahre werden auf allen Geräten entfernt und kommen auch aus alten Dateien nicht zurück.
+- Ordner umbenennen, Symbol und Hinweistext ändern wird übernommen (neuere Fassung gewinnt), es entstehen keine Duplikate.
+- Standardordner sind auf allen Geräten identisch, eigene Ordner werden über ihre ID erkannt.
 - In der Dokumentliste steht, **wer** ein Dokument abgelegt hat.
 
-Die Startseite zeigt, wann zuletzt abgeglichen wurde und wie viele Änderungen seither anstehen. Die Dateien sind zugleich das Backup.
+Die Startseite zeigt, wann zuletzt gespeichert wurde und wie viele Änderungen seither anstehen. Die Dateien sind zugleich das Backup.
+
+Getestet (Playwright, drei Geräte plus ein iPhone-Fall ohne Ordnerzugriff, gemeinsamer Ordner auf der Festplatte):
+Dokumente anlegen und abgleichen, Hintergrund-Abgleich, Löschen von Belegen und Ordnern, Umbenennen, zwei Geräte mit
+gleichem Namen, Abbrechen im Assistenten. Auf einem echten iPhone und mit echtem iCloud-/Google-Drive-Ordner ist es nicht geprüft.
 
 ## Technik
 
