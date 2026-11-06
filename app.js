@@ -567,9 +567,13 @@ function download(blob, name) {
 }
 // Ergebnis: true = geteilt oder heruntergeladen, false = abgebrochen
 async function shareOrDownload(blob, name, title) {
-  const file = new File([blob], name, { type: blob.type });
-  if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: title || name }); return true; } catch (e) { if (e.name === 'AbortError') return false; }
+  // Verschlüsselte Dateien haben keinen bekannten Typ: iOS lehnt sie sonst manchmal ab, dann mit Zip-Typ nochmals versuchen
+  const variants = [new File([blob], name, { type: blob.type })];
+  if (blob.type !== 'application/zip') variants.push(new File([blob], name, { type: 'application/zip' }));
+  for (const file of variants) {
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: title || name }); return true; } catch (e) { if (e.name === 'AbortError') return false; }
+    }
   }
   download(blob, name);
   return true;
@@ -921,7 +925,7 @@ async function syncViaFiles() {
   const res = dialog(`
     <h2>Abgleich mit der Familie</h2>
     <p><strong>Schritt 1:</strong> Hole die Änderungen der anderen. Tippe auf «Dateien wählen», öffne den gemeinsamen Ordner und markiere <em>alle</em> Dateien. Überspringe den Schritt, wenn du allein arbeitest.</p>
-    <label class="btn filebtn">📂 Dateien wählen<input type="file" id="wizFiles" multiple hidden></label>
+    <label class="btn filebtn pickover">📂 Dateien wählen<input type="file" id="wizFiles" multiple></label>
     <p id="wizState" class="muted small">Noch nichts gewählt.</p>
     <div id="wizPass" hidden>
       <label>Passwort der Familie<input type="password" id="wizPassIn" autocomplete="current-password"></label>
@@ -946,20 +950,20 @@ async function syncViaFiles() {
   // Dateien einlesen; Verschlüsselte ohne (richtiges) Passwort merken wir uns für die Passwort-Eingabe
   const readFiles = async (files) => {
     const total = { added: 0, updated: 0, deleted: 0, folders: 0 };
-    let bad = 0;
+    let bad = 0, why = '';
     const again = [];
     for (const f of files) {
       try { const st = await mergeSyncFile(f); for (const k of Object.keys(total)) total[k] += st[k]; } catch (e) {
-        if (e.code === 'NEED_PASS' || e.code === 'WRONG_PASS') again.push(f); else bad++;
+        if (e.code === 'NEED_PASS' || e.code === 'WRONG_PASS') again.push(f); else { bad++; if (!why) why = `«${f.name}»: ${(e && e.message) || e}`; }
       }
     }
-    return { total, bad, again };
+    return { total, bad, again, why };
   };
   const report = (n, r) => {
     locked = r.again;
     passBox.hidden = !locked.length;
     const lockedNote = locked.length ? ` ${plural(locked.length, 'Datei ist', 'Dateien sind')} verschlüsselt: Passwort eingeben.` : '';
-    state.textContent = `✓ ${plural(n, 'Datei', 'Dateien')} gelesen: ${r.total.added} neu, ${r.total.updated} aktualisiert, ${r.total.deleted} gelöscht${r.bad ? `, ${r.bad} nicht lesbar` : ''}.${lockedNote}`;
+    state.textContent = `✓ ${plural(n, 'Datei', 'Dateien')} gelesen: ${r.total.added} neu, ${r.total.updated} aktualisiert, ${r.total.deleted} gelöscht${r.bad ? `, ${r.bad} nicht lesbar (${r.why})` : ''}.${lockedNote}`;
     build(); prep();
     if (r.total.added + r.total.updated + r.total.deleted + r.total.folders) refreshIfIdle();
   };
@@ -968,7 +972,8 @@ async function syncViaFiles() {
     if (!files.length) return;
     state.textContent = 'Wird eingelesen …';
     saveBtn.disabled = true;
-    report(files.length, await readFiles(files));
+    try { report(files.length, await readFiles(files)); } catch (e) { state.textContent = 'Das Einlesen hat nicht geklappt: ' + ((e && e.message) || e); prep(); }
+    pick.value = '';
   };
   passBtn.onclick = async () => {
     const p = passIn.value;
@@ -2303,7 +2308,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.14.2';
+const APP_VERSION = '1.14.3';
 // Anzeigen nacheinander ausführen: Sonst kann eine ältere, noch laufende Anzeige die neuere überschreiben
 // (zum Beispiel wenn man während des Abgleichs auf eine andere Seite wechselt).
 let rendering = null, renderAgain = false, againKeep = true;
