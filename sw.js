@@ -1,5 +1,5 @@
-const CACHE = 'steuerordner-v22';
-const ASSETS = ['./', './index.html', './styles.css', './ui.css', './theme.css', './icons.js', './app.js', './db.js', './pdfwriter.js', './zip.js', './scan.js', './scanner.js', './install.js', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png'];
+const CACHE = 'ordni-v23';
+const ASSETS = ['./', './index.html', './styles.css', './ui.css', './theme.css', './icons.js', './app.js', './db.js', './pdfwriter.js', './zip.js', './scan.js', './scanner.js', './install.js', './manifest.webmanifest', './icons/icon.svg', './icons/favicon.svg', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));

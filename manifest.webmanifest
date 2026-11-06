@@ -1,16 +1,37 @@
 {
-  "name": "Steuerordner – Belege für die Steuererklärung",
-  "short_name": "Steuerordner",
-  "description": "Steuerbelege scannen, in Ordnern ablegen und als PDF für die Online-Steuererklärung exportieren.",
+  "name": "Ordni – Steuerordner für die Familie",
+  "short_name": "Ordni",
+  "description": "Ordni: Steuerbelege scannen, in Ordnern ablegen, mit der Familie teilen und für die Online-Steuererklärung bereithalten.",
   "lang": "de-CH",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f1f4f9",
+  "background_color": "#0f1f3d",
   "theme_color": "#0f1f3d",
   "icons": [
-    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

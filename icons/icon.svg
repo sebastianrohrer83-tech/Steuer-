@@ -1,8 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#0f1f3d"/>
-  <rect x="112" y="122" width="96" height="60" rx="18" fill="#f0a020"/>
-  <rect x="226" y="122" width="96" height="60" rx="18" fill="#ee4266"/>
-  <rect x="340" y="122" width="72" height="60" rx="18" fill="#14a76c"/>
-  <rect x="88" y="156" width="336" height="250" rx="34" fill="#ffffff"/>
-  <path d="M184 282l52 52 96-104" fill="none" stroke="#2b50e8" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Ordni"><rect width="1024" height="1024" fill="#0F1F3D"/><g transform="translate(192.0 182.39999999999998) scale(6.4)"><path d="M10 31C10 21 16 14 25 14H38C41 14 43.5 15 45.5 17L50 22H79C85.6 22 90 26.4 90 33V74H10Z" fill="#2B50E8"/><rect x="6" y="36" width="88" height="53" rx="11" fill="#FFFFFF"/><path d="M33 63L45.5 75.5L68 51" fill="none" stroke="#0F1F3D" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></g></svg>

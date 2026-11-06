@@ -20,6 +20,10 @@ export const DEFAULT_FOLDERS = [
   { key: 'sonstiges', short: 'Alles andere', examples: [], name: 'Sonstiges', icon: '📁', hint: 'Alles, was in keinen anderen Ordner passt (z. B. Erbschaft, Schenkung, Auslandkonten, Weiteres)' },
 ];
 
+// Markenzeichen Ordni: Wortmarke (aus Linien gezeichnet) und Symbol (Ordner mit Haken)
+const LOGO_WORDMARK = '<svg class="wm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 248 84" role="img" aria-label="Ordni"><g fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"><circle cx="34" cy="50" r="22.5"/><path d="M78 72.5V27.5M78 46C78 34.5 86.5 27.5 97 27.5"/><circle cx="138" cy="50" r="22.5"/><path d="M160.5 8V72.5"/><path d="M179.5 72.5V27.5M179.5 46C179.5 34.5 188 27.5 198 27.5C209.5 27.5 216 35.5 216 47V72.5"/><path d="M235 27.5V72.5"/></g><circle cx="235" cy="10" r="6.5" fill="var(--primary)"/></svg>';
+const LOGO_SYMBOL = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Ordni"><path d="M10 31C10 21 16 14 25 14H38C41 14 43.5 15 45.5 17L50 22H79C85.6 22 90 26.4 90 33V74H10Z" fill="#2B50E8"/><rect x="6" y="36" width="88" height="53" rx="11" fill="#fff"/><path d="M33 63L45.5 75.5L68 51" fill="none" stroke="#0F1F3D" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
 const DEFAULT_BY_KEY = Object.fromEntries(DEFAULT_FOLDERS.map((f) => [f.key, f]));
 const shortOf = (f) => (DEFAULT_BY_KEY[f.builtin] && DEFAULT_BY_KEY[f.builtin].short) || (f.hint ? f.hint.slice(0, 48) : '');
 const examplesOf = (f) => (DEFAULT_BY_KEY[f.builtin] && DEFAULT_BY_KEY[f.builtin].examples) || [];
@@ -707,7 +711,7 @@ async function saveSyncFile(share) {
     const t0 = Date.now();
     const blob = await buildSyncFile();
     let done = true;
-    if (share) done = await shareOrDownload(blob, fname, 'Steuerordner Sync-Datei'); else download(blob, fname);
+    if (share) done = await shareOrDownload(blob, fname, 'Ordni Sync-Datei'); else download(blob, fname);
     if (done) {
       await setSetting('lastSync', t0);
       toast(`Datei «${fname}» erstellt. Im geteilten Ordner ablegen und die alte Version ersetzen.`, 4500);
@@ -931,7 +935,7 @@ async function syncViaFiles() {
     report(locked.length - r.again.length, r);
   };
   if ((await res) !== 'save' || !blob) return;
-  const done = await shareOrDownload(blob, fname, 'Steuerordner Sync-Datei');
+  const done = await shareOrDownload(blob, fname, 'Ordni Sync-Datei');
   if (done) {
     await setSetting('lastSync', t0);
     await setSetting('encDirty', false);
@@ -981,7 +985,7 @@ async function mergeSyncFile(file) {
     }
     const entries = await readZip(buf);
     const mf = entries.find((e) => e.name === 'manifest.json');
-    if (!mf) throw new Error('Keine Steuerordner-Sync-Datei (manifest.json fehlt).');
+    if (!mf) throw new Error('Keine Ordni-Sync-Datei (manifest.json fehlt).');
     const manifest = JSON.parse(new TextDecoder().decode(mf.data));
     if (manifest.app !== 'steuerordner') throw new Error('Unbekanntes Dateiformat.');
     const byName = new Map(entries.map((e) => [e.name, e.data]));
@@ -1225,8 +1229,8 @@ async function scanInto(folder, year, camera, item = null, forcePerson = '', fil
 // Ansichten
 // ---------------------------------------------------------------------------
 const view = () => $('#view');
-function setHeader(title, { back = null, right = '' } = {}) {
-  $('#title').textContent = title;
+function setHeader(title, { back = null, right = '', logo = false } = {}) {
+  if (logo) $('#title').innerHTML = LOGO_WORDMARK; else $('#title').textContent = title;
   const b = $('#backBtn');
   b.style.visibility = back ? 'visible' : 'hidden';
   b.dataset.href = back || '';
@@ -1262,7 +1266,7 @@ async function renderHome() {
   const dirName = canWriteFolder() ? await getSetting('syncDirName', '') : '';
   let live = false;
   if (dirName) { try { live = await (await getSetting('syncDir', null)).queryPermission({ mode: 'readwrite' }) === 'granted'; } catch { live = false; } }
-  setHeader('Steuerordner', { right: `<a class="iconbtn" href="#/help" title="Hilfe" aria-label="Hilfe">?</a><a class="iconbtn" href="#/settings" title="Einstellungen" aria-label="Einstellungen">⚙︎</a>` });
+  setHeader('Ordni', { logo: true, right: `<a class="iconbtn" href="#/help" title="Hilfe" aria-label="Hilfe">?</a><a class="iconbtn" href="#/settings" title="Einstellungen" aria-label="Einstellungen">⚙︎</a>` });
   view().innerHTML = `
     ${tipDismissed ? '' : `<section class="tipcard"><strong>So fängst du an</strong><ol>
       <li>Tippe unten auf <b>Beleg scannen</b>.</li>
@@ -1795,8 +1799,8 @@ async function renderWelcome(params) {
   let body = '';
   if (w.step === 0) {
     body = `
-      <div class="bigicon">🗂️</div>
-      <h2>Willkommen bei Steuerordner</h2>
+      <div class="bigicon logo">${LOGO_SYMBOL}</div>
+      <h2>Willkommen bei Ordni</h2>
       <p class="lead">Hier sammelst du alle Belege für deine Steuererklärung. Du brauchst dafür nur dein Handy.</p>
       <ul class="points">
         <li><b class="n">1</b><span><strong>Beleg fotografieren.</strong> Die App schneidet das Blatt automatisch zu.</span></li>
@@ -2245,7 +2249,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.13.0';
+const APP_VERSION = '1.14.0';
 // Anzeigen nacheinander ausführen: Sonst kann eine ältere, noch laufende Anzeige die neuere überschreiben
 // (zum Beispiel wenn man während des Abgleichs auf eine andere Seite wechselt).
 let rendering = null, renderAgain = false, againKeep = true;

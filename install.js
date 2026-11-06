@@ -46,13 +46,13 @@
 
   if (isIOS) {
     window.addEventListener('load', () => setTimeout(() => show(
-      '<strong>Als App installieren</strong>Tippe auf das Teilen-Symbol (Quadrat mit Pfeil) oder auf «…», wähle «Zum Home-Bildschirm» und lass «Als Web-App öffnen» eingeschaltet. Danach liegt Steuerordner wie eine App auf dem Home-Bildschirm.',
+      '<strong>Als App installieren</strong>Tippe auf das Teilen-Symbol (Quadrat mit Pfeil) oder auf «…», wähle «Zum Home-Bildschirm» und lass «Als Web-App öffnen» eingeschaltet. Danach liegt Ordni wie eine App auf dem Home-Bildschirm.',
       false,
     ), 1200));
   }
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferred = e;
-    show('<strong>Als App installieren</strong>Steuerordner lässt sich wie eine App auf dem Gerät installieren.', true);
+    show('<strong>Als App installieren</strong>Ordni lässt sich wie eine App auf dem Gerät installieren.', true);
   });
 })();

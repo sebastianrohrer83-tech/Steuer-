@@ -37,7 +37,7 @@ export async function makePdf(pages, meta = {}) {
   addObj(1, '<< /Type /Catalog /Pages 2 0 R >>');
   addObj(2, `<< /Type /Pages /Kids [${kids}] /Count ${n} >>`);
   const title = utf16Hex(meta.title || 'Dokument');
-  addObj(3, `<< /Title <${title}> /Producer (Steuerordner) /Creator (Steuerordner) >>`);
+  addObj(3, `<< /Title <${title}> /Producer (Ordni) /Creator (Ordni) >>`);
 
   for (let i = 0; i < n; i++) {
     const pg = pages[i];

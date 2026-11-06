@@ -1,4 +1,4 @@
-# Steuerordner
+# Ordni (früher Steuerordner)
 
 Private Web-App zum Scannen und Ablegen von Steuerbelegen – vorbereitet für die
 Online-Steuererklärung. Die Ordner und die Checkliste zeigen die typischen Unterlagen und sind für alle
@@ -10,6 +10,19 @@ Kantone gleich. Es gibt keine Kantonswahl und keinen Link zu einem bestimmten St
 - Belege per Kamera scannen oder Fotos/PDFs aus der Galerie ablegen, mehrseitig, drehbar.
 - Export als PDF pro Beleg oder als ZIP-Paket pro Ordner / pro Steuerjahr – bereit zum Hochladen.
 - Status «hochgeladen» pro Dokument, Fortschrittsanzeige, Backup und Wiederherstellung.
+
+## Marke Ordni
+
+Die App heisst **Ordni** («der Steuerordner für die Familie»). Name, Logo und Farben stehen in `brand/`: Wortmarke (`wordmark*.svg`), Symbol
+(`symbol*.svg`), beides zusammen (`lockup*.svg`) und das App-Symbol (`app-icon.svg`, `app-icon-1024.png` für den App Store). Das Logo
+ist ein Ordner mit zwei Platten und einem Haken; die Wortmarke ist aus Linien gezeichnet und braucht keine Schrift.
+
+**Was bewusst gleich bleibt:** Die technischen Namen `steuerordner` (Datenbank, Kennung `app` in Sync-Dateien) und das Dateipräfix
+`Steuerordner_Sync_…` der Sync-Dateien. Sonst würden ältere Geräte die Dateien nicht mehr lesen.
+
+**Hinweis für Nutzer:** Das Symbol und der Name einer auf dem iPhone schon installierten App ändern sich nicht von selbst. Wer das neue
+Symbol sehen will, legt die App neu auf den Home-Bildschirm (vorher sichern). Der Name ist noch nicht als Marke geprüft (Swissreg).
+Der Test `test-brand.js` prüft Name, Symbole, Manifest und dass jede Datei der Offline-Liste lädt.
 
 ## Für Einsteiger
 
