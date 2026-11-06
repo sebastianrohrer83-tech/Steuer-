@@ -139,6 +139,19 @@ Neben iCloud Drive und Google Drive gibt es die Auswahl «Familie mit anderem Di
 (iPhone), im Dateimanager (Android) oder als Ordner am Computer erscheinen. Getestet ist nur mit einem nachgestellten Ordner, nicht mit echtem
 OneDrive oder Dropbox.
 
+## Checkliste pro Person
+
+- Sind zwei oder mehr Personen eingetragen, hat jede ihre **eigene Checkliste** mit eigenen Angaben («angestellt», «selbständig» …) und
+  eigenen Haken («Trifft nicht zu»). Oben wählt man die Person. Bei nur einer Person oder ohne Personen gibt es weiter die gemeinsame
+  Checkliste.
+- Ein Beleg zählt für die Person, der er zugeordnet ist. **Belege ohne Person zählen für alle** (zum Beispiel ältere Belege aus der Zeit
+  vor der Personenliste).
+- Scannt man aus einer Checkliste, steht die Person fest; die Frage «Wem gehört der Beleg?» entfällt.
+- Die Startseite zeigt den Stand der gewählten Person und kurz die der anderen.
+- Eine neue Person übernimmt als Vorgabe die frühere gemeinsame Angabe. Neue Steuerjahre übernehmen die Angaben der Personen. Beim Umbenennen einer Person ziehen Angaben, Haken und Belege mit. Alles wird mit der Familie abgeglichen.
+- **Gleichzeitige Anzeigen:** Die Seitenanzeige läuft jetzt nacheinander. Vorher konnte eine ältere, noch laufende Anzeige die neuere
+  überschreiben (zum Beispiel beim Wechsel der Seite während des Abgleichs).
+
 ## Papierkorb, Speicherfehler, Sicherungs-Erinnerung
 
 - **Papierkorb:** Einen Beleg zu löschen legt ihn zuerst nur in den Papierkorb (Einstellungen, «Papierkorb»). Dort bleibt er 30 Tage und

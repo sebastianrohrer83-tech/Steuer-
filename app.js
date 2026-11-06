@@ -325,8 +325,9 @@ const folderKey = (id) => 'f:' + id; // Löschmarken für Ordner und Jahre: «f:
 async function ensureYear(year) {
   if (!(await db.get('years', year))) {
     const prev = (await db.getAll('years')).filter((y) => y.profile).sort((a, b) => b.year - a.year)[0];
+    const prevPr = (await db.getAll('years')).filter((y) => y.profiles).sort((a, b) => b.year - a.year)[0];
     const prevP = (await db.getAll('years')).filter((y) => y.persons && y.persons.length).sort((a, b) => (b.personsAt || 0) - (a.personsAt || 0))[0];
-    await db.put('years', { year, createdAt: Date.now(), ...(prev ? { profile: prev.profile, profileAt: Date.now() } : {}), ...(prevP ? { persons: prevP.persons, personsAt: prevP.personsAt || Date.now() } : {}) });
+    await db.put('years', { year, createdAt: Date.now(), ...(prev ? { profile: prev.profile, profileAt: Date.now() } : {}), ...(prevPr ? { profiles: prevPr.profiles } : {}), ...(prevP ? { persons: prevP.persons, personsAt: prevP.personsAt || Date.now() } : {}) });
     await clearTombstones(['y:' + year]);
     await createDefaultFolders(year);
   }
@@ -355,16 +356,34 @@ function docSize(d) {
 
 // Checkliste und Beträge. Angaben und Haken liegen im Jahres-Eintrag und werden mit der Familie abgeglichen.
 const getYearRec = async (year) => (await db.get('years', year)) || { year, createdAt: Date.now() };
-async function setProfile(year, profile) {
+// Ohne Personen (oder mit nur einer) gibt es eine Checkliste für den ganzen Haushalt: «profile» und Haken unter ihrem Schlüssel.
+// Ab zwei Personen hat jede ihre eigenen Angaben («profiles», je mit Zeitstempel) und eigene Haken («Name|Schlüssel»).
+async function setProfile(year, profile, person = '') {
   const y = await getYearRec(year);
-  y.profile = profile;
-  y.profileAt = Date.now();
+  if (person) y.profiles = { ...(y.profiles || {}), [person]: { p: profile, at: Date.now() } };
+  else { y.profile = profile; y.profileAt = Date.now(); }
   await db.put('years', y);
 }
-async function setCheck(year, key, st) {
+async function setCheck(year, key, st, person = '') {
   const y = await getYearRec(year);
-  y.checks = { ...(y.checks || {}), [key]: { s: st, at: Date.now() } };
+  const k = person ? `${person}|${key}` : key;
+  y.checks = { ...(y.checks || {}), [k]: { s: st, at: Date.now() } };
   await db.put('years', y);
+}
+async function renamePersonData(old, n) {
+  for (const y of await db.getAll('years')) {
+    let ch = false;
+    if (y.profiles && y.profiles[old]) { const pr = { ...y.profiles[old], at: Date.now() }; y.profiles = { ...y.profiles }; delete y.profiles[old]; y.profiles[n] = pr; ch = true; }
+    if (y.checks) {
+      for (const k of Object.keys(y.checks)) {
+        if (!k.startsWith(old + '|')) continue;
+        y.checks[n + '|' + k.slice(old.length + 1)] = { ...y.checks[k], at: Date.now() };
+        delete y.checks[k];
+        ch = true;
+      }
+    }
+    if (ch) await db.put('years', y);
+  }
 }
 // Personen im Haushalt: die Liste steht an jedem Jahres-Eintrag und wird wie die Angaben mit der Familie abgeglichen.
 async function getPersons(year) { const y = await db.get('years', year); return (y && y.persons) || []; }
@@ -408,18 +427,28 @@ async function choosePerson(year) {
   if (r && r.startsWith('p:')) { const p = r.slice(2); await setSetting('lastPerson', p); return p; }
   return '';
 }
-async function checklistState(year) {
+// Welche Person gerade in der Checkliste angezeigt wird (nur ab zwei Personen)
+async function activeClPerson(persons) {
+  const saved = await getSetting('clPerson', '');
+  if (persons.includes(saved)) return saved;
+  const me = ((await getSetting('userName', '')) || '').toLowerCase().split(' ')[0];
+  return persons.find((p) => me && p.toLowerCase().startsWith(me)) || persons[0];
+}
+// Belege ohne Person zählen für alle Personen mit
+async function checklistState(year, person = '', docsIn = null) {
   const y = await db.get('years', year);
-  if (!y || !y.profile) return null;
-  const docs = (await db.getAllBy('docs', 'year', year)).filter((d) => !d.deletedAt);
+  const prof = person ? y && y.profiles && y.profiles[person] && y.profiles[person].p : y && y.profile;
+  if (!prof) return null;
+  const docs = (docsIn || (await db.getAllBy('docs', 'year', year))).filter((d) => !d.deletedAt);
   const countBy = {};
-  for (const d of docs) if (d.item) countBy[d.item] = (countBy[d.item] || 0) + 1;
-  const items = CHECKLIST.filter((it) => itemApplies(it, y.profile)).map((it) => {
-    const na = !!(y.checks && y.checks[it.key] && y.checks[it.key].s === 'na');
+  for (const d of docs) if (d.item && (!person || !d.person || d.person === person)) countBy[d.item] = (countBy[d.item] || 0) + 1;
+  const items = CHECKLIST.filter((it) => itemApplies(it, prof)).map((it) => {
+    const ck = y.checks && y.checks[person ? `${person}|${it.key}` : it.key];
+    const na = !!(ck && ck.s === 'na');
     const n = countBy[it.key] || 0;
     return { ...it, n, na, done: n > 0 || na };
   });
-  return { profile: y.profile, items, done: items.filter((i) => i.done).length, total: items.length };
+  return { profile: prof, items, done: items.filter((i) => i.done).length, total: items.length };
 }
 function parseAmount(v) {
   let t = String(v || '').replace(/[’'\s]/g, '');
@@ -430,16 +459,16 @@ function parseAmount(v) {
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
 }
 const fmtChf = (n) => Number(n).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-async function editProfile(year) {
+async function editProfile(year, person = '') {
   const y = await db.get('years', year);
-  const cur = { ...((y && y.profile) || {}) };
-  const res = dialog(`<h2>Was trifft auf dich zu?</h2>
-    <p class="muted small">Daraus erstellt die App deine Checkliste.</p>
+  const cur = { ...((person ? y && y.profiles && y.profiles[person] && y.profiles[person].p : y && y.profile) || (y && y.profile) || {}) };
+  const res = dialog(`<h2>${person ? `Was trifft auf ${esc(person)} zu?` : 'Was trifft auf dich zu?'}</h2>
+    <p class="muted small">Daraus erstellt die App ${person ? 'die' : 'deine'} Checkliste.</p>
     ${profileFormHtml(cur)}
     <div class="dlg-actions"><button type="button" data-value="cancel" class="btn">Abbrechen</button><button type="submit" class="btn primary">Speichern</button></div>`);
   $('#dlg form').addEventListener('change', (e) => { if (e.target.name === 'p') cur[e.target.value] = e.target.checked; });
   if (!(await res)) return false;
-  await setProfile(year, cur);
+  await setProfile(year, cur, person);
   return true;
 }
 
@@ -965,6 +994,10 @@ async function mergeSyncFile(file) {
       let changed = false;
       if ((y.profileAt || 0) > (local.profileAt || 0)) { local.profile = y.profile; local.profileAt = y.profileAt; changed = true; }
       if ((y.personsAt || 0) > (local.personsAt || 0)) { local.persons = y.persons; local.personsAt = y.personsAt; changed = true; }
+      for (const [name, pr] of Object.entries(y.profiles || {})) {
+        const lp = local.profiles && local.profiles[name];
+        if (!lp || (pr.at || 0) > (lp.at || 0)) { local.profiles = { ...(local.profiles || {}), [name]: pr }; changed = true; }
+      }
       for (const [k, c] of Object.entries(y.checks || {})) {
         const lc = local.checks && local.checks[k];
         if (!lc || c.at > lc.at) { local.checks = { ...(local.checks || {}), [k]: c }; changed = true; }
@@ -1053,7 +1086,7 @@ async function changesSinceSync() {
   const docs = await db.getAll('docs');
   const t = await getTombstones();
   const folders = await db.getAll('folders');
-  const years = (await db.getAll('years')).filter((y) => (y.profileAt || 0) > last || (y.personsAt || 0) > last || Object.values(y.checks || {}).some((c) => c.at > last)).length;
+  const years = (await db.getAll('years')).filter((y) => (y.profileAt || 0) > last || (y.personsAt || 0) > last || Object.values(y.profiles || {}).some((p) => p.at > last) || Object.values(y.checks || {}).some((c) => c.at > last)).length;
   const n = docs.filter((d) => (d.updatedAt || d.createdAt) > last).length + folders.filter((f) => (f.updatedAt || 0) > last).length + years + Object.values(t).filter((x) => x > last).length;
   return { last, n };
 }
@@ -1158,7 +1191,7 @@ async function chooseFolder(year, title = 'Wohin gehört der Beleg?') {
   return folders.find((f) => f.id === r) || null;
 }
 
-async function scanInto(folder, year, camera, item = null) {
+async function scanInto(folder, year, camera, item = null, forcePerson = '') {
   await maybeAskPersons(year);
   let pages = null, pdfs = [];
   if (camera) {
@@ -1172,7 +1205,7 @@ async function scanInto(folder, year, camera, item = null) {
     pages = await collectPhotoPages(files);
     if (!pages && !pdfs.length) return;
   }
-  const person = await choosePerson(year);
+  const person = forcePerson || (await choosePerson(year));
   const created = await addDocuments(folder, year, pages, pdfs, item, person);
   if (created.length === 1) location.hash = `#/d/${created[0].id}?new=1`;
   else if (created.length) { toast(`${created.length} Dokumente abgelegt.`); location.hash = `#/f/${folder.id}`; }
@@ -1205,7 +1238,12 @@ async function renderHome() {
   const warnBackup = docs.length > 0 && (!sync || (sync.n > 0 && backupDays >= 14));
   let warnFull = false;
   try { if (navigator.storage && navigator.storage.estimate) { const e = await navigator.storage.estimate(); warnFull = !!e.quota && e.usage / e.quota > 0.9; } } catch { /* egal */ }
-  const cl = await checklistState(year);
+  const persons = await getPersons(year);
+  const perMode = persons.length >= 2;
+  const clp = perMode ? await activeClPerson(persons) : '';
+  const cl = await checklistState(year, clp, docs);
+  const clOthers = [];
+  if (perMode) for (const p of persons.filter((x) => x !== clp)) { const o = await checklistState(year, p, docs); clOthers.push(o ? `${p}: ${o.done} von ${o.total}` : `${p}: noch keine Angaben`); }
   const clOpen = cl ? cl.items.filter((i) => !i.done) : [];
   const storage = await getSetting('storage', '');
   const enc = await encOn();
@@ -1227,13 +1265,13 @@ async function renderHome() {
       </ol>
     </section>
     ${cl ? `<section class="clcard">
-      <a class="clmain" href="#/checklist"><strong>Checkliste: ${cl.done} von ${cl.total} erledigt</strong>
+      <a class="clmain" href="#/checklist"><strong>Checkliste${perMode ? ' ' + esc(clp) : ''}: ${cl.done} von ${cl.total} erledigt</strong>
         <div class="bar"><i style="width:${cl.total ? Math.round(100 * cl.done / cl.total) : 0}%"></i></div>
-        <small>${clOpen.length ? `Noch offen: ${clOpen.slice(0, 3).map((i) => esc(i.short)).join(', ')}${clOpen.length > 3 ? ' …' : ''}` : 'Alles erledigt ✓'}</small></a>
+        <small>${clOpen.length ? `Noch offen: ${clOpen.slice(0, 3).map((i) => esc(i.short)).join(', ')}${clOpen.length > 3 ? ' …' : ''}` : 'Alles erledigt ✓'}</small>${clOthers.length ? `<small>${clOthers.map(esc).join(' · ')}</small>` : ''}</a>
       <a class="storeline" href="#/summary">🧾 Zahlen fürs Portal ›</a>
     </section>` : `<section class="clcard">
-      <strong>Welche Belege brauchst du?</strong>
-      <p class="muted small">Neun kurze Fragen, dann erstellt die App deine persönliche Checkliste.</p>
+      <strong>${perMode ? `Welche Belege braucht ${esc(clp)}?` : 'Welche Belege brauchst du?'}</strong>
+      <p class="muted small">Neun kurze Fragen, dann erstellt die App ${perMode ? 'die' : 'deine persönliche'} Checkliste.</p>${perMode && clOthers.length ? `<p class="muted small">${clOthers.map(esc).join(' · ')}</p>` : ''}
       <a class="btn primary" href="#/checklist">📝 Checkliste einrichten</a>
     </section>`}
     ${warnBackup ? `<section class="warncard"><strong>⚠️ Deine Belege sind nur auf diesem Handy.</strong>
@@ -1630,6 +1668,7 @@ async function renderSettings() {
       if (!n || n === old) return;
       if (persons.some((p) => p.toLowerCase() === n.toLowerCase() && p !== old)) { toast('Diesen Namen gibt es schon.'); return; }
       await setPersons(persons.map((p) => (p === old ? n : p)));
+      await renamePersonData(old, n);
       for (const d of await db.getAll('docs')) {
         if (d.person !== old) continue;
         if (d.autoBase && d.title.startsWith(autoTitle(d.autoBase, d.year, old))) d.title = autoTitle(d.autoBase, d.year, n) + d.title.slice(autoTitle(d.autoBase, d.year, old).length);
@@ -1838,7 +1877,7 @@ async function renderHelp() {
         <p>Nach dem Foto siehst du einen grünen Rahmen mit vier Punkten. Ziehe jeden Punkt mit dem Finger genau auf eine Ecke des Blattes und tippe dann auf <strong>Übernehmen</strong>. Ein dunkler Tisch und gutes Licht helfen. Mit <strong>Ganzes Bild</strong> nimmst du das ganze Foto.</p>
       </details>
       <details><summary>Wozu ist die Checkliste da?</summary>
-        <p>Sie zeigt dir, welche Belege du für deine Situation sammeln solltest, zum Beispiel Lohnausweis oder Säule-3a-Bescheinigung. Tippe bei einem Punkt auf <strong>Scannen</strong>. Was du nicht brauchst, setzt du auf <strong>Trifft nicht zu</strong>. Sie ist eine Orientierung, keine Steuerberatung.</p>
+        <p>Sie zeigt dir, welche Belege du für deine Situation sammeln solltest, zum Beispiel Lohnausweis oder Säule-3a-Bescheinigung. Sind zwei oder mehr Personen eingetragen, hat jede ihre eigene Checkliste. Wähle oben die Person. Tippe bei einem Punkt auf <strong>Scannen</strong>. Was du nicht brauchst, setzt du auf <strong>Trifft nicht zu</strong>. Sie ist eine Orientierung, keine Steuerberatung.</p>
       </details>
       <details><summary>Wozu soll ich Beträge eintragen?</summary>
         <p>Im Portal musst du meist Zahlen eintippen, nicht nur Dateien hochladen. Trage bei jedem Beleg den Betrag ein. Unter <strong>Zahlen fürs Portal</strong> siehst du dann alles auf einer Seite und kannst es ausdrucken.</p>
@@ -1990,30 +2029,36 @@ async function renderTrash() {
 
 async function renderChecklist() {
   const year = await currentYear();
-  const st = await checklistState(year);
+  const persons = await getPersons(year);
+  const perMode = persons.length >= 2;
+  const person = perMode ? await activeClPerson(persons) : '';
+  const st = await checklistState(year, person);
+  const chips = perMode ? `<div class="chips pfilter">${persons.map((p) => `<button type="button" class="chip ${p === person ? 'on' : ''}" data-action="clp" data-p="${esc(p)}">${esc(p)}</button>`).join('')}</div>` : '';
   const handler = async (e) => {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const a = btn.dataset.action;
     const key = btn.dataset.k;
     const it = key ? CHECKLIST.find((c) => c.key === key) : null;
-    if (a === 'saveProfile') { await setProfile(year, readProfile(view())); render(); }
-    else if (a === 'profile') { if (await editProfile(year)) render(); }
-    else if (a === 'na') { await setCheck(year, key, 'na'); render(true); }
-    else if (a === 'undo') { await setCheck(year, key, ''); render(true); }
+    if (a === 'clp') { await setSetting('clPerson', btn.dataset.p); render(true); }
+    else if (a === 'saveProfile') { await setProfile(year, readProfile(view()), person); render(); }
+    else if (a === 'profile') { if (await editProfile(year, person)) render(); }
+    else if (a === 'na') { await setCheck(year, key, 'na', person); render(true); }
+    else if (a === 'undo') { await setCheck(year, key, '', person); render(true); }
     else if ((a === 'scan' || a === 'pick') && it) {
       let folder = await db.get('folders', builtinId(year, it.folder));
       if (!folder) folder = await chooseFolder(year);
-      if (folder) await scanInto(folder, year, a === 'scan', it);
+      if (folder) await scanInto(folder, year, a === 'scan', it, person);
     }
   };
   if (!st) {
     setHeader('Checkliste', { back: '#/' });
-    view().innerHTML = `<section class="welcome">
+    const yrec = await db.get('years', year);
+    view().innerHTML = `${chips}<section class="welcome">
       <div class="bigicon">📝</div>
-      <h2>Welche Belege brauchst du?</h2>
-      <p class="lead">Beantworte kurz, was auf dich zutrifft. Daraus erstellt die App deine persönliche Checkliste.</p>
-      ${profileFormHtml({})}
+      <h2>${perMode ? `Welche Belege braucht ${esc(person)}?` : 'Welche Belege brauchst du?'}</h2>
+      <p class="lead">Beantworte kurz, was ${perMode ? 'auf diese Person' : 'auf dich'} zutrifft. Daraus erstellt die App ${perMode ? 'die' : 'deine persönliche'} Checkliste.</p>
+      ${profileFormHtml((yrec && yrec.profile) || {})}
       <div class="actions"><button class="btn primary huge" data-action="saveProfile">Checkliste erstellen</button></div></section>`;
     view().onclick = handler;
     return;
@@ -2033,9 +2078,9 @@ async function renderChecklist() {
         ${i.n ? '' : `<button class="btn small" data-action="na" data-k="${i.key}">Trifft nicht zu</button>`}`}
       </div>
     </li>`;
-  view().innerHTML = `
+  view().innerHTML = `${chips}
     <section class="stepcard">
-      <strong>${st.done} von ${st.total} erledigt</strong>
+      <strong>${perMode ? esc(person) + ': ' : ''}${st.done} von ${st.total} erledigt</strong>
       <div class="bar"><i style="width:${pct}%"></i></div>
       <p class="muted small">${st.done === st.total ? 'Alles erledigt. Gut gemacht.' : 'Tippe bei einem Punkt auf «Scannen». Was du nicht hast oder nicht brauchst, setzt du auf «Trifft nicht zu».'}</p>
     </section>
@@ -2103,8 +2148,21 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.11.0';
-async function render(keepScroll = false) {
+const APP_VERSION = '1.12.0';
+// Anzeigen nacheinander ausführen: Sonst kann eine ältere, noch laufende Anzeige die neuere überschreiben
+// (zum Beispiel wenn man während des Abgleichs auf eine andere Seite wechselt).
+let rendering = null, renderAgain = false, againKeep = true;
+function render(keepScroll = false) {
+  if (rendering) { renderAgain = true; againKeep = againKeep && keepScroll; return rendering; }
+  rendering = (async () => {
+    try {
+      await doRender(keepScroll);
+      while (renderAgain) { renderAgain = false; const k = againKeep; againKeep = true; await doRender(k); }
+    } finally { rendering = null; }
+  })();
+  return rendering;
+}
+async function doRender(keepScroll = false) {
   const scrollY = window.scrollY;
   revokeUrls();
   $('#headerRight').onclick = null;
