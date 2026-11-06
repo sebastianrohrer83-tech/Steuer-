@@ -132,6 +132,14 @@ Getestet (Playwright, drei Geräte plus ein iPhone-Fall ohne Ordnerzugriff, geme
 Dokumente anlegen und abgleichen, Hintergrund-Abgleich, Löschen von Belegen und Ordnern, Umbenennen, zwei Geräte mit
 gleichem Namen, Abbrechen im Assistenten. Auf einem echten iPhone und mit echtem iCloud-/Google-Drive-Ordner ist es nicht geprüft.
 
+## Absprung zu Google Drive
+
+Wer «Familie mit Google Drive» wählt, sieht auf der Startseite und in den Einstellungen den Knopf **Google Drive öffnen**. Er öffnet
+Drive in einem neuen Tab bzw. in der Drive-App. In den Einstellungen lässt sich zusätzlich der Link zum gemeinsamen Ordner
+speichern (in Drive: Teilen, Link kopieren); dann öffnet der Knopf direkt diesen Ordner. Es werden nur Adressen von
+`drive.google.com` und `docs.google.com` angenommen. Der Link bleibt auf dem Gerät gespeichert. Ob die Drive-App auf dem Handy den
+Link direkt öffnet, hängt vom Gerät ab.
+
 ## Verschlüsselte Sync-Dateien
 
 - Unter Einstellungen bei «Verschlüsselung» (oder beim ersten Abgleich) legst du ein Passwort fest. Alle in der Familie

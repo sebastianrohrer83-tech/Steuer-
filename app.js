@@ -80,6 +80,10 @@ const STORAGES = {
   gdrive: { icon: '📁', label: 'Familie mit Google Drive', short: 'Familie über Google Drive', text: 'Alle teilen einen Ordner in Google Drive. Geht auch mit Android.' },
 };
 
+// Absprung zu Google Drive: der gespeicherte Ordner-Link, sonst die Startseite von Drive
+const DRIVE_HOME = 'https://drive.google.com/drive/my-drive';
+const driveOk = (u) => { try { const x = new URL(u); return x.protocol === 'https:' && /^(drive|docs)\.google\.com$/.test(x.hostname); } catch { return false; } };
+
 function storageOptionsHtml(sel) {
   return `<div class="opts">${Object.entries(STORAGES).map(([k, st]) => `
     <button type="button" class="opt ${sel === k ? 'on' : ''}" data-action="pickStorage" data-s="${k}">
@@ -1125,6 +1129,7 @@ async function renderHome() {
   const clOpen = cl ? cl.items.filter((i) => !i.done) : [];
   const storage = await getSetting('storage', '');
   const enc = await encOn();
+  const driveUrl = (await getSetting('driveUrl', '')) || DRIVE_HOME;
   const dirName = canWriteFolder() ? await getSetting('syncDirName', '') : '';
   let live = false;
   if (dirName) { try { live = await (await getSetting('syncDir', null)).queryPermission({ mode: 'readwrite' }) === 'granted'; } catch { live = false; } }
@@ -1154,6 +1159,7 @@ async function renderHome() {
     ${storage ? `<section class="savecard ${!sync || sync.n ? 'pending' : ''}">
       <button class="btn ${!sync || sync.n ? 'primary' : ''} big wide" data-action="autoSave">💾 Jetzt speichern</button>
       <p class="muted small">${sync ? `Zuletzt gespeichert: ${new Date(sync.last).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' })}${sync.n ? ` · ${sync.n} Änderung${sync.n === 1 ? '' : 'en'} noch nicht gesichert` : ' · alles gesichert ✓'}` : 'Noch nie gespeichert.'} ${canWriteFolder() ? (dirName ? `Ordner «${esc(dirName)}»${live ? ': wird automatisch abgeglichen ✓' : ': tippe auf den Knopf, um den automatischen Abgleich zu starten.'}` : 'Beim ersten Mal wählst du den Ordner aus.') : 'Eine kurze Anleitung führt dich durch den Abgleich.'}${enc ? ' 🔒 Verschlüsselt.' : ''}</p>
+      ${storage === 'gdrive' ? `<a class="btn wide" style="margin-top:10px" href="${esc(driveUrl)}" target="_blank" rel="noopener">📁 Google Drive öffnen</a>` : ''}
       ${enc ? '' : '<a class="storeline" href="#/settings">🔒 Dateien verschlüsseln (empfohlen) ›</a>'}
     </section>` : ''}
     ${first ? `<section class="tipcard"><strong>So fängst du an</strong><ol>
@@ -1431,6 +1437,7 @@ async function renderSettings() {
   const dirName = await getSetting('syncDirName', '');
   const enc = await encOn();
   const haveKey = !!(await getSetting('syncPass', ''));
+  const driveLink = await getSetting('driveUrl', '');
   let storageInfo = '';
   if (navigator.storage && navigator.storage.estimate) {
     const e = await navigator.storage.estimate();
@@ -1482,6 +1489,8 @@ async function renderSettings() {
         <button class="btn ${storage ? '' : 'primary'}" data-action="syncSave">⇪ Meine Datei speichern</button>
         <button class="btn" data-action="syncLoad">⤒ ${storage === 'local' || !storage ? 'Sicherung einlesen' : 'Dateien einlesen'}</button>
       </div>
+      ${storage === 'gdrive' ? `<div class="row"><a class="btn" href="${esc(driveLink || DRIVE_HOME)}" target="_blank" rel="noopener">📁 Google Drive öffnen</a><button class="btn" data-action="driveLink">${driveLink ? 'Ordner-Link ändern' : 'Link zum Ordner speichern'}</button></div>
+      <p class="muted small">${driveLink ? 'Der Knopf öffnet direkt euren gemeinsamen Ordner. Der Link bleibt auf diesem Gerät gespeichert.' : 'Tipp: Öffne in Google Drive den Ordner «Steuer», tippe auf Teilen und «Link kopieren». Füge ihn hier ein, dann öffnet der Knopf direkt diesen Ordner.'}</p>` : ''}
       ${canWriteFolder() && storage ? `<p class="muted">Ordner für «Jetzt speichern»: ${dirName ? `<strong>${esc(dirName)}</strong>` : 'noch nicht gewählt'} <button class="linkbtn inline" data-action="pickDir">${dirName ? 'ändern' : 'jetzt wählen'}</button></p>` : ''}
       <p class="muted">${sync ? `Letzter Abgleich: ${new Date(sync.last).toLocaleString('de-CH')}${sync.n ? ` · ${sync.n} Änderung(en) seither` : ''}` : 'Noch kein Abgleich durchgeführt.'} Die Datei ist zugleich deine Sicherung.</p>
 
@@ -1510,7 +1519,17 @@ async function renderSettings() {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const a = btn.dataset.action;
-    if (a === 'personAdd') {
+    if (a === 'driveLink') {
+      const r = await dialog(`<h2>Link zum Ordner</h2><p class="muted small">In Google Drive beim Ordner auf Teilen tippen, dann «Link kopieren». Leer lassen und speichern entfernt den Link.</p>
+        <label>Link<input type="text" name="v" value="${esc(driveLink)}" maxlength="400" inputmode="url" autocomplete="off" placeholder="https://drive.google.com/drive/folders/…"></label>
+        <div class="dlg-actions"><button type="button" data-value="cancel" class="btn">Abbrechen</button><button type="submit" class="btn primary">Speichern</button></div>`);
+      if (!r || typeof r !== 'object') return;
+      const u = (r.v || '').trim();
+      if (u && !driveOk(u)) { toast('Das ist kein Google-Drive-Link. Er beginnt mit https://drive.google.com/', 5500); return; }
+      await setSetting('driveUrl', u);
+      toast(u ? 'Link gespeichert.' : 'Link entfernt.');
+      render(true);
+    } else if (a === 'personAdd') {
       const names = await namesDlg('Person hinzufügen', 'Du kannst mehrere Namen mit Komma trennen.', '');
       if (names && names.length) { await setPersons(parseNames([...persons, ...names].join(','))); render(true); }
     } else if (a === 'personRename') {
@@ -1947,7 +1966,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.10.0';
+const APP_VERSION = '1.10.1';
 async function render(keepScroll = false) {
   const scrollY = window.scrollY;
   revokeUrls();
