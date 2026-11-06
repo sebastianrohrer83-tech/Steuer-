@@ -266,3 +266,13 @@ ol.bigsteps li { font-size: 1.02rem; }
 
 /* iPhone zoomt in Felder mit Schrift unter 16px hinein und zoomt nicht mehr zurück */
 select, input[type=text], input[type=password], input[type=url], input[type=number], input[type=search], textarea { font-size: 16px; }
+
+/* Warnungen auf der Startseite und Papierkorb */
+.warncard { margin: 0 0 14px; padding: 16px 18px; border-radius: 22px; background: color-mix(in oklab, var(--alert) 12%, var(--card)); border: 1.5px solid color-mix(in oklab, var(--alert) 40%, var(--line)); }
+.warncard p { margin: 6px 0 12px; line-height: 1.4; }
+.warncard .btn { width: 100%; }
+.warncard strong + p:last-child { margin-bottom: 0; }
+.trashtext small { display: block; color: var(--muted); }
+.trashbtns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.uprow .trashtext { flex: 1; }
+.uprow.trashrow { flex-direction: column; align-items: stretch; padding: 12px 0; }

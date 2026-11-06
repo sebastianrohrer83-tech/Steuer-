@@ -139,6 +139,19 @@ Neben iCloud Drive und Google Drive gibt es die Auswahl «Familie mit anderem Di
 (iPhone), im Dateimanager (Android) oder als Ordner am Computer erscheinen. Getestet ist nur mit einem nachgestellten Ordner, nicht mit echtem
 OneDrive oder Dropbox.
 
+## Papierkorb, Speicherfehler, Sicherungs-Erinnerung
+
+- **Papierkorb:** Einen Beleg zu löschen legt ihn zuerst nur in den Papierkorb (Einstellungen, «Papierkorb»). Dort bleibt er 30 Tage und
+  lässt sich zurückholen. Die Markierung wird wie jede Änderung mit der Familie abgeglichen. Danach wird er endgültig gelöscht
+  (automatisch beim nächsten Öffnen der App) und die Löschung geht an die anderen Geräte. Wer einen Ordner oder ein Steuerjahr löscht,
+  schickt dessen Belege in den Papierkorb; Zurückholen stellt Ordner und Jahr bei Bedarf wieder her. Ein Steuerjahr löscht man nur, wenn
+  man das Jahr eintippt. Ältere App-Versionen auf anderen Geräten kennen den Papierkorb nicht und zeigen solche Belege weiter an.
+- **Speicher voll:** Scheitert das Speichern, weil der Speicher des Geräts voll ist, zeigt die App eine klare Meldung und legt keinen halben
+  Beleg an. Ab 90 % Belegung erscheint eine Warnung auf der Startseite. Beim ersten Beleg bittet die App den Browser einmalig um
+  dauerhaften Speicher.
+- **Sicherungs-Erinnerung:** Gibt es Belege und wurde nie gesichert, oder liegt die letzte Sicherung 14 Tage zurück und es hat sich seither
+  etwas geändert, zeigt die Startseite eine Warnung mit dem Knopf «Jetzt sichern».
+
 ## Absprung zu Google Drive
 
 Wer «Familie mit Google Drive» wählt, sieht auf der Startseite und in den Einstellungen den Knopf **Google Drive öffnen**. Er öffnet

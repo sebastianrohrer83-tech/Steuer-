@@ -33,7 +33,7 @@ function run(store, mode, fn) {
     const req = fn(t.objectStore(store));
     t.oncomplete = () => resolve(req ? req.result : undefined);
     t.onerror = () => reject(t.error);
-    t.onabort = () => reject(t.error);
+    t.onabort = () => reject(t.error || (req && req.error) || new DOMException('Speichern wurde abgebrochen', 'AbortError'));
   }));
 }
 

@@ -257,7 +257,69 @@ async function clearTombstones(keys) {
   for (const k of keys) if (k in t) { delete t[k]; changed = true; }
   if (changed) await setSetting('tombstones', t);
 }
-async function deleteDoc(id) { await db.del('docs', id); await markDeleted([id]); }
+// Papierkorb: Belege werden zuerst nur markiert («deletedAt») und bleiben 30 Tage wiederherstellbar.
+// Die Markierung wird wie jede andere Änderung mit der Familie abgeglichen.
+const TRASH_DAYS = 30;
+const papierkorbSatz = (n, ort = '') => (n === 0 ? '' : n === 1 ? `Der Beleg${ort} kommt in den Papierkorb und kann dort ${TRASH_DAYS} Tage lang zurückgeholt werden.` : `Die ${n} Belege${ort} kommen in den Papierkorb und können dort ${TRASH_DAYS} Tage lang zurückgeholt werden.`);
+const folderSnap = (f) => (f ? { id: f.id, name: f.name, icon: f.icon, hint: f.hint || '', builtin: f.builtin, order: f.order } : null);
+async function trashDoc(d, folder) {
+  d.deletedAt = Date.now();
+  d.updatedAt = Date.now();
+  const snap = folderSnap(folder || (await db.get('folders', d.folderId)));
+  if (snap) d.trashFolder = snap;
+  await db.put('docs', d);
+}
+async function restoreDoc(d) {
+  await ensureYear(d.year);
+  let f = await db.get('folders', d.folderId);
+  if (!f) {
+    const sn = d.trashFolder;
+    if (sn && !sn.builtin) {
+      f = { id: sn.id, year: d.year, name: sn.name, icon: sn.icon, hint: sn.hint || '', order: sn.order ?? 99, createdAt: Date.now(), updatedAt: Date.now() };
+      await db.put('folders', f);
+      await clearTombstones([folderKey(f.id)]);
+    } else {
+      await createDefaultFolders(d.year, true);
+      f = (await db.get('folders', d.folderId)) || (await db.get('folders', builtinId(d.year, (sn && sn.builtin) || 'sonstiges')));
+      if (f) d.folderId = f.id;
+    }
+  }
+  delete d.deletedAt;
+  delete d.trashFolder;
+  d.updatedAt = Date.now();
+  await db.put('docs', d);
+}
+async function trashedDocs() { return (await db.getAll('docs')).filter((d) => d.deletedAt).sort((a, b) => b.deletedAt - a.deletedAt); }
+async function purgeTrash() {
+  const cutoff = Date.now() - TRASH_DAYS * 864e5;
+  const old = (await trashedDocs()).filter((d) => d.deletedAt < cutoff);
+  if (!old.length) return;
+  for (const d of old) await db.del('docs', d.id);
+  await markDeleted(old.map((d) => d.id));
+}
+let trashPurged = false;
+
+// Fehler beim Speichern verständlich melden (vor allem: Speicher voll)
+const isQuota = (e) => !!e && (e.name === 'QuotaExceededError' || /quota/i.test(String(e.message || '')));
+const QUOTA_MSG = 'Der Speicher auf diesem Gerät ist voll. Der Beleg wurde nicht gespeichert. Schaffe Platz (zum Beispiel alte Fotos oder Apps löschen) und versuche es nochmals.';
+function reportDbError(e) {
+  busy(false);
+  toast(isQuota(e) ? QUOTA_MSG : 'Speichern hat nicht geklappt: ' + ((e && e.message) || e), 7000);
+}
+window.addEventListener('unhandledrejection', (e) => { if (isQuota(e.reason)) { e.preventDefault(); reportDbError(e.reason); } });
+async function tryPersist() {
+  if (await getSetting('persistTried', false)) return;
+  await setSetting('persistTried', true);
+  try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch { /* egal */ }
+}
+async function typedConfirm(title, text, word, okLabel) {
+  const r = await dialog(`<h2>${esc(title)}</h2><p>${esc(text)}</p>
+    <label>Zur Bestätigung «${esc(word)}» eintippen<input type="text" name="v" autocomplete="off" inputmode="numeric" maxlength="20"></label>
+    <div class="dlg-actions"><button type="button" data-value="cancel" class="btn">Abbrechen</button><button type="submit" class="btn danger">${esc(okLabel)}</button></div>`);
+  if (!r || typeof r !== 'object') return false;
+  if (String(r.v || '').trim() !== String(word)) { toast('Die Eingabe stimmt nicht. Nichts wurde gelöscht.', 4000); return false; }
+  return true;
+}
 const folderKey = (id) => 'f:' + id; // Löschmarken für Ordner und Jahre: «f:<id>», «y:<Jahr>»
 
 async function ensureYear(year) {
@@ -283,7 +345,7 @@ async function foldersOf(year) {
   return list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name, 'de'));
 }
 async function docsOf(folderId) {
-  const list = await db.getAllBy('docs', 'folderId', folderId);
+  const list = (await db.getAllBy('docs', 'folderId', folderId)).filter((d) => !d.deletedAt);
   return list.sort((a, b) => b.createdAt - a.createdAt);
 }
 function docSize(d) {
@@ -349,7 +411,7 @@ async function choosePerson(year) {
 async function checklistState(year) {
   const y = await db.get('years', year);
   if (!y || !y.profile) return null;
-  const docs = await db.getAllBy('docs', 'year', year);
+  const docs = (await db.getAllBy('docs', 'year', year)).filter((d) => !d.deletedAt);
   const countBy = {};
   for (const d of docs) if (d.item) countBy[d.item] = (countBy[d.item] || 0) + 1;
   const items = CHECKLIST.filter((it) => itemApplies(it, y.profile)).map((it) => {
@@ -969,11 +1031,11 @@ async function mergeSyncFile(file) {
     for (const [key, delAt] of Object.entries(remoteTomb)) {
       if (key.startsWith('f:')) {
         const f = await db.get('folders', key.slice(2));
-        if (f && (f.updatedAt || 0) < delAt && !(await db.getAllBy('docs', 'folderId', f.id)).length) { await db.del('folders', f.id); stats.deleted++; }
+        if (f && (f.updatedAt || 0) < delAt && !(await db.getAllBy('docs', 'folderId', f.id)).filter((d) => !d.deletedAt).length) { await db.del('folders', f.id); stats.deleted++; }
       } else if (key.startsWith('y:')) {
         const yr = Number(key.slice(2));
         const y = await db.get('years', yr);
-        if (y && (y.createdAt || 0) < delAt && !(await db.getAllBy('docs', 'year', yr)).length) {
+        if (y && (y.createdAt || 0) < delAt && !(await db.getAllBy('docs', 'year', yr)).filter((d) => !d.deletedAt).length) {
           for (const f of await db.getAllBy('folders', 'year', yr)) await db.del('folders', f.id);
           await db.del('years', yr);
           stats.deleted++;
@@ -1068,6 +1130,9 @@ async function addDocuments(folder, year, pages, pdfs, item = null, person = '')
       await db.put('docs', doc);
       created.push(doc);
     }
+    if (created.length) tryPersist();
+  } catch (e) {
+    reportDbError(e);
   } finally { busy(false); }
   return created;
 }
@@ -1129,13 +1194,17 @@ async function renderHome() {
   const year = await currentYear();
   const years = (await db.getAll('years')).map((y) => y.year).sort((a, b) => b - a);
   const folders = await foldersOf(year);
-  const docs = await db.getAllBy('docs', 'year', year);
+  const docs = (await db.getAllBy('docs', 'year', year)).filter((d) => !d.deletedAt);
   const countBy = {};
   for (const d of docs) countBy[d.folderId] = (countBy[d.folderId] || 0) + 1;
   const uploaded = docs.filter((d) => d.uploaded).length;
   const first = docs.length === 0;
   const allUp = docs.length > 0 && uploaded === docs.length;
   const sync = await changesSinceSync();
+  const backupDays = sync ? Math.floor((Date.now() - sync.last) / 864e5) : null;
+  const warnBackup = docs.length > 0 && (!sync || (sync.n > 0 && backupDays >= 14));
+  let warnFull = false;
+  try { if (navigator.storage && navigator.storage.estimate) { const e = await navigator.storage.estimate(); warnFull = !!e.quota && e.usage / e.quota > 0.9; } } catch { /* egal */ }
   const cl = await checklistState(year);
   const clOpen = cl ? cl.items.filter((i) => !i.done) : [];
   const storage = await getSetting('storage', '');
@@ -1167,6 +1236,11 @@ async function renderHome() {
       <p class="muted small">Neun kurze Fragen, dann erstellt die App deine persönliche Checkliste.</p>
       <a class="btn primary" href="#/checklist">📝 Checkliste einrichten</a>
     </section>`}
+    ${warnBackup ? `<section class="warncard"><strong>⚠️ Deine Belege sind nur auf diesem Handy.</strong>
+      <p>${sync ? `Die letzte Sicherung ist ${backupDays} Tage her, seither hat sich etwas geändert.` : 'Du hast noch nie gesichert.'} Geht das Handy verloren oder kaputt, sind sie weg.</p>
+      <button class="btn primary" data-action="autoSave">💾 Jetzt sichern</button></section>` : ''}
+    ${warnFull ? `<section class="warncard"><strong>⚠️ Der Speicher ist fast voll.</strong>
+      <p>Sichere deine Belege und schaffe Platz, bevor neue Scans nicht mehr gespeichert werden können.</p></section>` : ''}
     ${storage ? `<section class="savecard ${!sync || sync.n ? 'pending' : ''}">
       <button class="btn ${!sync || sync.n ? 'primary' : ''} big wide" data-action="autoSave">💾 Jetzt speichern</button>
       <p class="muted small">${sync ? `Zuletzt gespeichert: ${new Date(sync.last).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' })}${sync.n ? ` · ${sync.n} Änderung${sync.n === 1 ? '' : 'en'} noch nicht gesichert` : ' · alles gesichert ✓'}` : 'Noch nie gespeichert.'} ${canWriteFolder() ? (dirName ? `Ordner «${esc(dirName)}»${live ? ': wird automatisch abgeglichen ✓' : ': tippe auf den Knopf, um den automatischen Abgleich zu starten.'}` : 'Beim ersten Mal wählst du den Ordner aus.') : 'Eine kurze Anleitung führt dich durch den Abgleich.'}${enc ? ' 🔒 Verschlüsselt.' : ''}</p>
@@ -1284,11 +1358,12 @@ async function renderFolder(folderId) {
         for (const d of docs) { d.uploaded = true; d.uploadedAt = Date.now(); d.updatedAt = Date.now(); await db.put('docs', d); }
         render();
       } else if (r === 'delete') {
-        const ok = await confirmDlg('Ordner löschen?', docs.length ? `Der Ordner enthält ${docs.length} Dokument(e). Diese werden unwiderruflich gelöscht.` : 'Der Ordner wird gelöscht.');
+        const ok = await confirmDlg('Ordner löschen?', allDocs.length ? papierkorbSatz(allDocs.length, ' in diesem Ordner') + ' Du findest den Papierkorb unter Einstellungen.' : 'Der Ordner wird gelöscht.', allDocs.length ? 'In den Papierkorb' : 'Löschen');
         if (!ok) return;
-        await markDeleted([...docs.map((d) => d.id), folderKey(folder.id)]);
-        for (const d of docs) await db.del('docs', d.id);
+        for (const d of allDocs) await trashDoc(d, folder);
+        await markDeleted([folderKey(folder.id)]);
         await db.del('folders', folder.id);
+        toast(allDocs.length ? 'Ordner gelöscht. Die Belege liegen im Papierkorb.' : 'Ordner gelöscht.', 5000);
         location.hash = '#/';
       }
     }
@@ -1299,7 +1374,7 @@ async function renderFolder(folderId) {
 
 async function renderDoc(docId, params) {
   const doc = await db.get('docs', docId);
-  if (!doc) { location.hash = '#/'; return; }
+  if (!doc || doc.deletedAt) { location.hash = '#/'; return; }
   const folder = await db.get('folders', doc.folderId);
   const year = doc.year;
   setHeader(folder ? folder.name : 'Dokument', { back: `#/f/${doc.folderId}`, right: `<button class="iconbtn" data-action="docMenu" aria-label="Dokument-Menü">⋯</button>` });
@@ -1348,7 +1423,7 @@ async function renderDoc(docId, params) {
     doc.note = $('#docNote').value.trim();
     doc.amount = parseAmount($('#docAmount').value);
     doc.updatedAt = Date.now();
-    saveTimer = setTimeout(() => db.put('docs', doc), 150);
+    saveTimer = setTimeout(() => db.put('docs', doc).catch(reportDbError), 150);
   };
   $('#docTitle').oninput = save;
   $('#docNote').oninput = save;
@@ -1420,14 +1495,15 @@ async function renderDoc(docId, params) {
       const r = await dialog(`<h2>${esc(doc.title)}</h2>
         <div class="dlg-actions column">
           <button type="button" data-value="move" class="btn">In anderen Ordner verschieben</button>
-          <button type="button" data-value="delete" class="btn danger">Dokument löschen</button>
+          <button type="button" data-value="delete" class="btn danger">Beleg löschen</button>
           <button type="button" data-value="cancel" class="btn ghost">Abbrechen</button></div>`);
       if (r === 'move') {
         const f = await chooseFolder(year, 'Wohin soll der Beleg?');
         if (f) { doc.folderId = f.id; doc.updatedAt = Date.now(); await db.put('docs', doc); location.hash = `#/f/${f.id}`; }
       } else if (r === 'delete') {
-        if (await confirmDlg('Dokument löschen?', 'Das Dokument mit allen Seiten wird unwiderruflich gelöscht.')) {
-          await deleteDoc(doc.id);
+        if (await confirmDlg('Beleg löschen?', `«${doc.title}» kommt in den Papierkorb und bleibt dort ${TRASH_DAYS} Tage. Du findest ihn unter Einstellungen, «Papierkorb».`, 'In den Papierkorb')) {
+          await trashDoc(doc, folder);
+          toast('In den Papierkorb gelegt. Zurückholen: Einstellungen, «Papierkorb».', 6000);
           location.hash = `#/f/${doc.folderId}`;
         }
       }
@@ -1449,6 +1525,7 @@ async function renderSettings() {
   const enc = await encOn();
   const haveKey = !!(await getSetting('syncPass', ''));
   const driveLink = await getSetting('driveUrl', '');
+  const trashN = (await trashedDocs()).length;
   let storageInfo = '';
   if (navigator.storage && navigator.storage.estimate) {
     const e = await navigator.storage.estimate();
@@ -1483,6 +1560,10 @@ async function renderSettings() {
       <h3>Belege hochladen</h3>
       <p>Hier überträgst du deine Belege in die Online-Steuererklärung. Die App führt dich Schritt für Schritt.</p>
       <a class="btn primary" href="#/upload">📤 Zum Hochladen</a>
+
+      <h3>Papierkorb</h3>
+      <p>Gelöschte Belege bleiben ${TRASH_DAYS} Tage hier und lassen sich zurückholen.</p>
+      <a class="btn" href="#/trash">🗑️ Papierkorb öffnen${trashN ? ` (${trashN})` : ''}</a>
 
       <h3>Steuerjahre</h3>
       <ul class="plain">${years.map((y) => `<li><span>Steuerjahr ${y}${y === year ? ' (aktiv)' : ''}</span><button class="iconbtn danger" data-action="delYear" data-year="${y}" title="Steuerjahr löschen">✕</button></li>`).join('')}</ul>
@@ -1567,11 +1648,12 @@ async function renderSettings() {
       render();
     } else if (a === 'delYear') {
       const y = Number(btn.dataset.year);
-      const docs = await db.getAllBy('docs', 'year', y);
-      if (!(await confirmDlg(`Steuerjahr ${y} löschen?`, `Alle Ordner und ${docs.length} Dokument(e) dieses Jahres werden unwiderruflich gelöscht.`))) return;
+      const docs = (await db.getAllBy('docs', 'year', y)).filter((d) => !d.deletedAt);
+      if (!(await typedConfirm(`Steuerjahr ${y} löschen?`, `Alle Ordner dieses Jahres werden entfernt. ${papierkorbSatz(docs.length, ' dieses Jahres')} Die Angaben der Checkliste gehen verloren.`.replace('  ', ' '), y, 'Jahr löschen'))) return;
       const yf = await db.getAllBy('folders', 'year', y);
-      await markDeleted([...docs.map((d) => d.id), ...yf.map((f) => folderKey(f.id)), 'y:' + y]);
-      for (const d of docs) await db.del('docs', d.id);
+      const byId = new Map(yf.map((f) => [f.id, f]));
+      for (const d of docs) await trashDoc(d, byId.get(d.folderId));
+      await markDeleted([...yf.map((f) => folderKey(f.id)), 'y:' + y]);
       for (const f of yf) await db.del('folders', f.id);
       await db.del('years', y);
       if (y === year) { const rest = years.filter((x) => x !== y); await setSetting('year', rest[0] || new Date().getFullYear()); }
@@ -1779,6 +1861,9 @@ async function renderHelp() {
       <details><summary>Wie arbeiten wir zu zweit oder als Familie?</summary>
         <p>Alle nutzen einen gemeinsamen Ordner in iCloud Drive oder Google Drive. Jedes Gerät speichert seine eigene Datei dort hinein und liest die Dateien der anderen ein. Das erledigt der Knopf «Jetzt speichern». Die genauen Schritte stehen unter Einstellungen bei «Speicherort und Familie».</p>
       </details>
+      <details><summary>Ich habe einen Beleg aus Versehen gelöscht. Was nun?</summary>
+        <p>Gelöschte Belege liegen ${TRASH_DAYS} Tage im Papierkorb. Öffne Einstellungen, dann «Papierkorb», und tippe auf <strong>Zurückholen</strong>. Danach ist der Beleg endgültig weg, auch bei der Familie.</p>
+      </details>
       <details><summary>Sind meine Daten sicher? Kann etwas verloren gehen?</summary>
         <p>Die Belege bleiben auf deinem Gerät, die App sendet nichts ins Internet. Damit nichts verloren geht, installiere die App auf dem Home-Bildschirm und speichere ab und zu <strong>Meine Datei</strong> in den Einstellungen. Diese Datei ist deine Sicherung.</p>
       </details>
@@ -1858,6 +1943,47 @@ async function renderUpload() {
         const pdf = await docToPdf(d);
         await shareOrDownload(pdf, pdfName(year, g.f, d), d.title);
       } finally { busy(false); }
+    }
+  };
+}
+
+async function renderTrash() {
+  const list = await trashedDocs();
+  setHeader('Papierkorb', { back: '#/settings' });
+  const daysLeft = (d) => Math.max(0, Math.ceil((d.deletedAt + TRASH_DAYS * 864e5 - Date.now()) / 864e5));
+  view().innerHTML = `
+    <section class="upsteps">
+      <strong>Gelöschte Belege</strong>
+      <p class="muted small">Nach ${TRASH_DAYS} Tagen werden sie endgültig gelöscht. Gelöscht wird auch bei der Familie, sobald ihr euch abgleicht. Zurückholen geht, solange der Beleg hier liegt.</p>
+    </section>
+    ${list.length ? `<div class="upbtns"><button class="btn danger" data-action="emptyTrash">Papierkorb leeren</button></div>
+    ${list.map((d) => `
+      <div class="uprow trashrow">
+        <div class="trashtext"><strong>${esc(d.title)}</strong>
+          <small>${d.trashFolder ? esc(d.trashFolder.name) + ' · ' : ''}${d.year}${d.person ? ' · ' + esc(d.person) : ''} · noch ${plural(daysLeft(d), 'Tag', 'Tage')}</small></div>
+        <div class="trashbtns">
+          <button class="btn small primary" data-action="restore" data-id="${d.id}">Zurückholen</button>
+          <button class="btn small danger" data-action="purge" data-id="${d.id}">Endgültig löschen</button>
+        </div>
+      </div>`).join('')}` : '<div class="empty"><div class="empty-icon">🗑️</div><p>Der Papierkorb ist leer.</p><a class="btn" href="#/settings">Zurück</a></div>'}`;
+  view().onclick = async (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const a = btn.dataset.action;
+    const d = list.find((x) => x.id === btn.dataset.id);
+    if (a === 'restore' && d) {
+      try { await restoreDoc(d); toast(`Zurückgeholt: ${d.title}`, 4000); } catch (err) { reportDbError(err); }
+      render(true);
+    } else if (a === 'purge' && d) {
+      if (!(await confirmDlg('Endgültig löschen?', `«${d.title}» wird unwiderruflich gelöscht, auch bei der Familie.`, 'Endgültig löschen'))) return;
+      await db.del('docs', d.id);
+      await markDeleted([d.id]);
+      render(true);
+    } else if (a === 'emptyTrash') {
+      if (!(await confirmDlg('Papierkorb leeren?', `${plural(list.length, 'Beleg', 'Belege')} werden unwiderruflich gelöscht, auch bei der Familie.`, 'Leeren'))) return;
+      for (const x of list) await db.del('docs', x.id);
+      await markDeleted(list.map((x) => x.id));
+      render(true);
     }
   };
 }
@@ -1977,7 +2103,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.10.3';
+const APP_VERSION = '1.11.0';
 async function render(keepScroll = false) {
   const scrollY = window.scrollY;
   revokeUrls();
@@ -1989,11 +2115,13 @@ async function render(keepScroll = false) {
   try {
     // Erster Start: Einführung zeigen (bestehende Installationen haben schon ein Jahr gespeichert)
     if (parts[0] !== 'welcome' && !(await getSetting('onboarded')) && !(await getSetting('year'))) { location.hash = '#/welcome'; return; }
+    if (!trashPurged) { trashPurged = true; await purgeTrash().catch(() => {}); }
     if (parts[0] === 'welcome') await renderWelcome(params);
     else if (parts[0] === 'help') await renderHelp();
     else if (parts[0] === 'upload') await renderUpload();
     else if (parts[0] === 'checklist') await renderChecklist();
     else if (parts[0] === 'summary') await renderSummary();
+    else if (parts[0] === 'trash') await renderTrash();
     else if (parts[0] === 'f' && parts[1]) await renderFolder(parts[1]);
     else if (parts[0] === 'd' && parts[1]) await renderDoc(parts[1], params);
     else if (parts[0] === 'settings') await renderSettings();
