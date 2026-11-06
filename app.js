@@ -166,7 +166,9 @@ function busy(on, text = 'Bitte warten …') {
 // ---------------------------------------------------------------------------
 // Dialoge
 // ---------------------------------------------------------------------------
-function dialog(html) {
+// opts.onValue(wert) läuft sofort beim Tippen auf einen Knopf (noch vor dem Schliessen). Das ist nötig, wenn danach die
+// Fotoauswahl geöffnet werden soll: Safari auf dem iPhone erlaubt das nur direkt beim Tippen.
+function dialog(html, opts = {}) {
   return new Promise((resolve) => {
     const d = $('#dlg');
     d.innerHTML = `<form method="dialog" class="dlg-form">${html}</form>`;
@@ -176,6 +178,7 @@ function dialog(html) {
       const btn = e.target.closest('button[data-value]');
       if (!btn) return;
       e.preventDefault();
+      if (opts.onValue && btn.dataset.value !== 'cancel') opts.onValue(btn.dataset.value);
       if (btn.dataset.value === 'ok' || btn.dataset.value === 'submit') {
         const data = {};
         new FormData(form).forEach((v, k) => (data[k] = v));
@@ -1128,8 +1131,13 @@ async function collectCameraPages() {
   const mode = await getScanMode();
   const res = await scanPages({ mode, auto: await getSetting('autoCapture', true), onAuto: (v) => setSetting('autoCapture', v) });
   if (res !== 'unavailable') return res;
-  toast('Kamera nicht verfügbar. Das Foto wird über die Kamera-App aufgenommen.', 3500);
-  const files = (await pickFiles({ camera: true })).filter(isImage);
+  let fp = null;
+  const r = await dialog(`<h2>Kamera nicht verfügbar</h2>
+    <p>Die App darf die Kamera nicht direkt nutzen. Du kannst das Foto stattdessen mit der Kamera-App deines Geräts aufnehmen.</p>
+    <div class="dlg-actions column"><button type="button" data-value="photo" class="btn primary">📷 Foto aufnehmen</button><button type="button" data-value="cancel" class="btn ghost">Abbrechen</button></div>`,
+  { onValue: (v) => { if (v === 'photo') fp = pickFiles({ camera: true }); } });
+  if (r !== 'photo' || !fp) return null;
+  const files = (await fp).filter(isImage);
   return files.length ? reviewFiles(files, { mode }) : null;
 }
 
@@ -1175,36 +1183,38 @@ function pickFiles({ camera }) {
     const input = camera ? $('#camInput') : $('#galInput');
     input.value = '';
     input.onchange = () => resolve([...input.files]);
+    input.oncancel = () => resolve([]);
     input.click();
   });
 }
 
-async function chooseFolder(year, title = 'Wohin gehört der Beleg?') {
+async function chooseFolder(year, title = 'Wohin gehört der Beleg?', onPick = null) {
   const folders = await foldersOf(year);
   const r = await dialog(`<h2>${esc(title)}</h2>
     <p>Tippe auf den passenden Ordner.</p>
     <div class="dlg-actions column folderpick">
       ${folders.map((f) => `<button type="button" data-value="${f.id}" class="btn pick"><span class="pk-i">${esc(f.icon || '📁')}</span><span class="pk-t"><strong>${esc(f.name)}</strong><small>${esc(shortOf(f))}</small></span></button>`).join('')}
     </div>
-    <div class="dlg-actions column"><button type="button" data-value="cancel" class="btn ghost">Abbrechen</button></div>`);
+    <div class="dlg-actions column"><button type="button" data-value="cancel" class="btn ghost">Abbrechen</button></div>`, onPick ? { onValue: onPick } : {});
   if (!r || r === 'cancel') return null;
   return folders.find((f) => f.id === r) || null;
 }
 
-async function scanInto(folder, year, camera, item = null, forcePerson = '') {
-  await maybeAskPersons(year);
+// filesP: schon geöffnete Fotoauswahl (muss direkt beim Tippen gestartet worden sein, siehe dialog())
+async function scanInto(folder, year, camera, item = null, forcePerson = '', filesP = null) {
   let pages = null, pdfs = [];
   if (camera) {
     pages = await collectCameraPages();
     if (!pages) return;
   } else {
-    const files = await pickFiles({ camera: false });
+    const files = await (filesP || pickFiles({ camera: false }));
     if (!files.length) return;
     pdfs = files.filter(isPdf);
     if (files.length - files.filter(isImage).length - pdfs.length) toast('Nur Bilder und PDF-Dateien werden unterstützt.');
     pages = await collectPhotoPages(files);
     if (!pages && !pdfs.length) return;
   }
+  await maybeAskPersons(year);
   const person = forcePerson || (await choosePerson(year));
   const created = await addDocuments(folder, year, pages, pdfs, item, person);
   if (created.length === 1) location.hash = `#/d/${created[0].id}?new=1`;
@@ -1328,8 +1338,9 @@ async function renderHome() {
       await db.put('folders', { id: uid(), year, name, icon: '📁', hint: '', order: folders.length + 1, createdAt: Date.now(), updatedAt: Date.now() });
       render();
     } else if (a === 'quickScan' || a === 'quickPick') {
-      const f = await chooseFolder(year);
-      if (f) await scanInto(f, year, a === 'quickScan');
+      let filesP = null;
+      const f = await chooseFolder(year, 'Wohin gehört der Beleg?', a === 'quickPick' ? () => { filesP = pickFiles({ camera: false }); } : null);
+      if (f) await scanInto(f, year, a === 'quickScan', null, '', filesP);
     }
   };
 }
@@ -1369,7 +1380,7 @@ async function renderFolder(folderId) {
     const a = btn.dataset.action;
     if (a === 'pf') { personFilter = { folder: folderId, p: btn.dataset.p || null }; render(true); }
     else if (a === 'scan') await scanInto(folder, year, true);
-    else if (a === 'pick') await scanInto(folder, year, false);
+    else if (a === 'pick') await scanInto(folder, year, false, null, '', pickFiles({ camera: false }));
     else if (a === 'folderMenu') {
       const r = await dialog(`<h2>${esc(folder.name)}</h2>
         <div class="dlg-actions column">
@@ -2033,6 +2044,7 @@ async function renderChecklist() {
   const perMode = persons.length >= 2;
   const person = perMode ? await activeClPerson(persons) : '';
   const st = await checklistState(year, person);
+  const folderById = new Map((await foldersOf(year)).map((f) => [f.id, f]));
   const chips = perMode ? `<div class="chips pfilter">${persons.map((p) => `<button type="button" class="chip ${p === person ? 'on' : ''}" data-action="clp" data-p="${esc(p)}">${esc(p)}</button>`).join('')}</div>` : '';
   const handler = async (e) => {
     const btn = e.target.closest('[data-action]');
@@ -2046,9 +2058,11 @@ async function renderChecklist() {
     else if (a === 'na') { await setCheck(year, key, 'na', person); render(true); }
     else if (a === 'undo') { await setCheck(year, key, '', person); render(true); }
     else if ((a === 'scan' || a === 'pick') && it) {
-      let folder = await db.get('folders', builtinId(year, it.folder));
+      // Die Fotoauswahl muss direkt beim Tippen aufgehen, darum vor allen Abfragen starten
+      const filesP = a === 'pick' ? pickFiles({ camera: false }) : null;
+      let folder = folderById.get(builtinId(year, it.folder)) || (await db.get('folders', builtinId(year, it.folder)));
       if (!folder) folder = await chooseFolder(year);
-      if (folder) await scanInto(folder, year, a === 'scan', it, person);
+      if (folder) await scanInto(folder, year, a === 'scan', it, person, filesP);
     }
   };
   if (!st) {
@@ -2148,7 +2162,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.12.0';
+const APP_VERSION = '1.12.1';
 // Anzeigen nacheinander ausführen: Sonst kann eine ältere, noch laufende Anzeige die neuere überschreiben
 // (zum Beispiel wenn man während des Abgleichs auf eine andere Seite wechselt).
 let rendering = null, renderAgain = false, againKeep = true;

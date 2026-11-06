@@ -187,6 +187,13 @@ Link direkt öffnet, hängt vom Gerät ab.
 - Ohne Passwort lassen sich die Dateien im Ordner nicht wiederherstellen. Die Belege in den Apps bleiben erhalten.
 - Nicht verschlüsselt sind die Daten in der App auf dem Gerät und PDFs, die du selbst teilst.
 
+## Fotoauswahl auf dem iPhone
+
+Safari öffnet die Fotoauswahl nur, wenn sie direkt beim Tippen angefordert wird, nicht erst nach einer Datenbank-Abfrage. Die App
+startet die Auswahl deshalb zuerst und stellt danach Fragen (zum Beispiel einmalig «Für wen sammelst du Belege?»). Fällt die Kamera
+aus, erscheint ein Knopf «Foto aufnehmen». Der Test `test-pick.js` bildet die strenge Regel nach. Auf einem echten iPhone ist es
+nicht geprüft.
+
 ## Technik
 
 Reines HTML/CSS/JavaScript ohne Build-Schritt und ohne Abhängigkeiten.
