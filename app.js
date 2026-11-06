@@ -189,13 +189,35 @@ function keepAboveKeyboard(d) {
     if (vv) { vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit); }
   };
 }
+// Dialog nach unten wegwischen (wie ein iPhone-Blatt) und per Tippen neben den Dialog schliessen.
+// Dialoge mit Eingabefeld (Klasse «top») bleiben beim Wischen ruhig, sie folgen der Tastatur.
+function swipeToClose(d, close) {
+  let y0 = null, dy = 0;
+  d.ontouchstart = (e) => { y0 = d.scrollTop <= 0 && !d.classList.contains('top') && e.touches.length === 1 ? e.touches[0].clientY : null; dy = 0; d.style.transition = 'none'; };
+  d.ontouchmove = (e) => {
+    if (y0 === null) return;
+    dy = e.touches[0].clientY - y0;
+    if (dy > 0 && d.scrollTop <= 0) { e.preventDefault(); d.style.transform = `translateY(${dy}px)`; }
+    else { dy = 0; d.style.transform = ''; }
+  };
+  d.ontouchend = d.ontouchcancel = () => {
+    if (y0 === null) return;
+    y0 = null;
+    if (dy > 90) { close(); return; }
+    d.style.transition = 'transform .2s ease-out'; d.style.transform = '';
+  };
+  d.onclick = (e) => { if (e.target === d) close(); };
+  return () => { d.ontouchstart = d.ontouchmove = d.ontouchend = d.ontouchcancel = d.onclick = null; d.style.transition = ''; if (!d.classList.contains('top')) d.style.transform = ''; };
+}
 function dialog(html, opts = {}) {
   return new Promise((resolve) => {
     const d = $('#dlg');
-    d.innerHTML = `<form method="dialog" class="dlg-form">${html}</form>`;
+    d.innerHTML = `<form method="dialog" class="dlg-form" tabindex="-1">${html}</form>`;
     const form = d.querySelector('form');
     let cleanup = () => {};
     const done = (v) => { cleanup(); d.close(); d.innerHTML = ''; resolve(v); };
+    const stopSwipe = swipeToClose(d, () => done(null));
+    cleanup = () => { stopSwipe(); };
     form.addEventListener('click', (e) => {
       const btn = e.target.closest('button[data-value]');
       if (!btn) return;
@@ -214,10 +236,14 @@ function dialog(html, opts = {}) {
       done(data);
     });
     d.addEventListener('cancel', () => done(null), { once: true });
-    if (form.querySelector('input[type=text], input[type=password], input[type=url], textarea')) cleanup = keepAboveKeyboard(d);
+    if (form.querySelector('input[type=text], input[type=password], input[type=url], textarea')) {
+      const stopKb = keepAboveKeyboard(d);
+      cleanup = () => { stopSwipe(); stopKb(); };
+    }
     d.showModal();
     const first = form.querySelector('input[type=text], input:not([type=hidden]), select, textarea');
-    if (first) { first.focus(); if (first.select) first.select(); }
+    // Ohne Eingabefeld: Fokus auf den Dialog selbst, damit der erste Knopf keinen Fokusrahmen bekommt
+    if (first) { first.focus(); if (first.select) first.select(); } else form.focus({ preventScroll: true });
   });
 }
 const confirmDlg = (title, text, okLabel = 'Löschen') => dialog(`
@@ -2277,7 +2303,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.14.1';
+const APP_VERSION = '1.14.2';
 // Anzeigen nacheinander ausführen: Sonst kann eine ältere, noch laufende Anzeige die neuere überschreiben
 // (zum Beispiel wenn man während des Abgleichs auf eine andere Seite wechselt).
 let rendering = null, renderAgain = false, againKeep = true;

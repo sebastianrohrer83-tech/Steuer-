@@ -301,3 +301,8 @@ dialog.top .dlg-form { padding-bottom: 0; }
 dialog.top .dlg-actions:last-child { position: sticky; bottom: 0; background: var(--card); padding: 12px 0 calc(14px + env(safe-area-inset-bottom)); margin-top: 0; z-index: 1; box-shadow: 0 -10px 12px -10px rgba(15, 31, 61, .2); }
 dialog.top .dlg-form::before { display: none; }
 dialog.top .dlg-form { padding-top: 22px; }
+
+/* Dialoge: kein Fokusrahmen am Dialog selbst; Rahmen der Knöpfe liegt innen, damit er nicht abgeschnitten wird */
+.dlg-form:focus { outline: 0; }
+dialog :focus-visible { outline-offset: -3px; }
+dialog { overscroll-behavior: contain; }
