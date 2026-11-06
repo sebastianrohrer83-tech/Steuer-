@@ -1148,7 +1148,7 @@ async function renderHome() {
       <a class="storeline" href="#/summary">🧾 Zahlen fürs Portal ›</a>
     </section>` : `<section class="clcard">
       <strong>Welche Belege brauchst du?</strong>
-      <p class="muted small">Sieben kurze Fragen, dann erstellt die App deine persönliche Checkliste.</p>
+      <p class="muted small">Neun kurze Fragen, dann erstellt die App deine persönliche Checkliste.</p>
       <a class="btn primary" href="#/checklist">📝 Checkliste einrichten</a>
     </section>`}
     ${storage ? `<section class="savecard ${!sync || sync.n ? 'pending' : ''}">
