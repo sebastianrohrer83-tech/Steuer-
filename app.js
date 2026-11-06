@@ -1248,6 +1248,7 @@ async function renderHome() {
   const warnBackup = docs.length > 0 && (!sync || (sync.n > 0 && backupDays >= 14));
   let warnFull = false;
   try { if (navigator.storage && navigator.storage.estimate) { const e = await navigator.storage.estimate(); warnFull = !!e.quota && e.usage / e.quota > 0.9; } } catch { /* egal */ }
+  const tipDismissed = await getSetting('tipDismissed', false);
   const persons = await getPersons(year);
   const perMode = persons.length >= 2;
   const clp = perMode ? await activeClPerson(persons) : '';
@@ -1263,6 +1264,11 @@ async function renderHome() {
   if (dirName) { try { live = await (await getSetting('syncDir', null)).queryPermission({ mode: 'readwrite' }) === 'granted'; } catch { live = false; } }
   setHeader('Steuerordner', { right: `<a class="iconbtn" href="#/help" title="Hilfe" aria-label="Hilfe">?</a><a class="iconbtn" href="#/settings" title="Einstellungen" aria-label="Einstellungen">⚙︎</a>` });
   view().innerHTML = `
+    ${tipDismissed ? '' : `<section class="tipcard"><strong>So fängst du an</strong><ol>
+      <li>Tippe unten auf <b>Beleg scannen</b>.</li>
+      <li>Wähle den passenden Ordner, zum Beispiel <b>Lohn &amp; Einkommen</b> für deinen Lohnausweis.</li>
+      <li>Lege das Blatt auf einen dunklen Tisch. Die App macht das Foto von selbst.</li></ol>
+      <label class="check tipdone"><input type="checkbox" id="tipDone"> Gelesen, nicht mehr anzeigen</label></section>`}
     <section class="stepcard">
       <label class="yearsel">Steuerjahr
         <select id="yearSelect">${years.map((y) => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}<option value="__new">+ Anderes Jahr anlegen …</option></select>
@@ -1295,10 +1301,6 @@ async function renderHome() {
       ${storage === 'gdrive' ? `<a class="btn wide" style="margin-top:10px" href="${esc(driveUrl)}" target="_blank" rel="noopener">📁 Google Drive öffnen</a>` : ''}
       ${enc ? '' : '<a class="storeline" href="#/settings">🔒 Dateien verschlüsseln (empfohlen) ›</a>'}
     </section>` : ''}
-    ${first ? `<section class="tipcard"><strong>So fängst du an</strong><ol>
-      <li>Tippe unten auf <b>Beleg scannen</b>.</li>
-      <li>Wähle den passenden Ordner, zum Beispiel <b>Lohn &amp; Einkommen</b> für deinen Lohnausweis.</li>
-      <li>Lege das Blatt auf einen dunklen Tisch. Die App macht das Foto von selbst.</li></ol></section>` : ''}
     <h2 class="sectitle">Deine Ordner</h2>
     <section class="grid">
       ${folders.map((f) => `
@@ -1326,6 +1328,9 @@ async function renderHome() {
       await setSetting('year', Number(y));
     } else await setSetting('year', Number(v));
     render();
+  };
+  view().onchange = async (e) => {
+    if (e.target.id === 'tipDone' && e.target.checked) { await setSetting('tipDismissed', true); render(true); }
   };
   view().onclick = async (e) => {
     const btn = e.target.closest('[data-action]');
@@ -1713,6 +1718,7 @@ async function renderSettings() {
       render();
     } else if (a === 'again') {
       welcome = {};
+      await setSetting('tipDismissed', false);
       location.hash = '#/welcome?again=1';
     } else if (a === 'restoreDefaults') {
       const n = await createDefaultFolders(year, true);
@@ -1926,8 +1932,8 @@ async function renderHelp() {
       </details>
       <button class="btn" data-action="again">Einführung nochmals ansehen</button>
     </section>`;
-  view().onclick = (e) => {
-    if (e.target.closest('[data-action=again]')) { welcome = {}; location.hash = '#/welcome?again=1'; }
+  view().onclick = async (e) => {
+    if (e.target.closest('[data-action=again]')) { welcome = {}; await setSetting('tipDismissed', false); location.hash = '#/welcome?again=1'; }
   };
 }
 
@@ -2162,7 +2168,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.12.1';
+const APP_VERSION = '1.12.2';
 // Anzeigen nacheinander ausführen: Sonst kann eine ältere, noch laufende Anzeige die neuere überschreiben
 // (zum Beispiel wenn man während des Abgleichs auf eine andere Seite wechselt).
 let rendering = null, renderAgain = false, againKeep = true;

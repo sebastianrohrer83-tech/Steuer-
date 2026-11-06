@@ -276,3 +276,5 @@ select, input[type=text], input[type=password], input[type=url], input[type=numb
 .trashbtns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .uprow .trashtext { flex: 1; }
 .uprow.trashrow { flex-direction: column; align-items: stretch; padding: 12px 0; }
+
+.tipdone { margin-top: 12px; padding-top: 12px; border-top: 1px solid color-mix(in oklab, var(--primary) 20%, transparent); font-weight: 700; }

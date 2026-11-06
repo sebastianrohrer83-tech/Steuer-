@@ -187,6 +187,12 @@ Link direkt öffnet, hängt vom Gerät ab.
 - Ohne Passwort lassen sich die Dateien im Ordner nicht wiederherstellen. Die Belege in den Apps bleiben erhalten.
 - Nicht verschlüsselt sind die Daten in der App auf dem Gerät und PDFs, die du selbst teilst.
 
+## Tipp «So fängst du an»
+
+Auf der Startseite steht ganz oben der Tipp «So fängst du an» mit dem Kästchen «Gelesen, nicht mehr anzeigen». Er bleibt, bis man das
+Kästchen abhakt (auch wenn schon Belege da sind), und das gilt pro Gerät. «Einführung nochmals ansehen» (Einstellungen oder Hilfe) schaltet
+ihn wieder ein.
+
 ## Fotoauswahl auf dem iPhone
 
 Safari öffnet die Fotoauswahl nur, wenn sie direkt beim Tippen angefordert wird, nicht erst nach einer Datenbank-Abfrage. Die App
