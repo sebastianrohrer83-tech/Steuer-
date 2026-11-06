@@ -263,3 +263,6 @@ ol.bigsteps li { font-size: 1.02rem; }
 /* Personenfilter im Ordner */
 .pfilter { margin: 4px 0 12px; }
 .chip.on { background: var(--primary); color: #fff; }
+
+/* iPhone zoomt in Felder mit Schrift unter 16px hinein und zoomt nicht mehr zurück */
+select, input[type=text], input[type=password], input[type=url], input[type=number], input[type=search], textarea { font-size: 16px; }

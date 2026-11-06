@@ -1977,7 +1977,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.10.2';
+const APP_VERSION = '1.10.3';
 async function render(keepScroll = false) {
   const scrollY = window.scrollY;
   revokeUrls();
