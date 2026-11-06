@@ -17,8 +17,13 @@ Die App heisst **Ordni** («der Steuerordner für die Familie»). Name, Logo und
 (`symbol*.svg`), beides zusammen (`lockup*.svg`) und das App-Symbol (`app-icon.svg`, `app-icon-1024.png` für den App Store). Das Logo
 ist ein Ordner mit zwei Platten und einem Haken; die Wortmarke ist aus Linien gezeichnet und braucht keine Schrift.
 
-**Was bewusst gleich bleibt:** Die technischen Namen `steuerordner` (Datenbank, Kennung `app` in Sync-Dateien) und das Dateipräfix
-`Steuerordner_Sync_…` der Sync-Dateien. Sonst würden ältere Geräte die Dateien nicht mehr lesen.
+**Sync-Dateien:** Sie heissen jetzt `Ordni_Sync_<Name>_<Kürzel>.zip` (verschlüsselt `….zip.enc`). Dateien mit dem alten Namen
+`Steuerordner_Sync_…` (Version 1.13 und früher) liest die App weiter, und beim nächsten Speichern ersetzt sie die eigene alte Datei durch
+die neue. Auf dem iPhone kann sie die alte Datei nicht selbst löschen: Dort bleibt sie liegen, bis man sie im Ordner entfernt. Sie
+schadet nicht, denn die neuere Fassung gewinnt. **Ältere App-Versionen kennen den neuen Namen nicht** und sehen die neuen Dateien nicht:
+Alle in der Familie sollten die App aktualisieren.
+
+**Was bewusst gleich bleibt:** Die technischen Namen `steuerordner` (Datenbank, Kennung `app` in den Sync-Dateien).
 
 **Hinweis für Nutzer:** Das Symbol und der Name einer auf dem iPhone schon installierten App ändern sich nicht von selbst. Wer das neue
 Symbol sehen will, legt die App neu auf den Home-Bildschirm (vorher sichern). Der Name ist noch nicht als Marke geprüft (Swissreg).
@@ -129,7 +134,7 @@ Die App hat keinen Server. Alle im Haushalt nutzen einen gemeinsamen Ordner in i
      Schritt 1 «Dateien wählen» (im Ordner alle Dateien markieren), Schritt 2 «Meine Datei sichern» («In Dateien
      sichern» → Ordner «Steuer», ältere Datei ersetzen). Erst nach Schritt 2 gilt der Stand als gesichert.
 
-Jedes Gerät schreibt nur **seine eigene** Datei `Steuerordner_Sync_<Name>_<Gerätekürzel>.zip`. Deshalb überschreiben sich
+Jedes Gerät schreibt nur **seine eigene** Datei `Ordni_Sync_<Name>_<Gerätekürzel>.zip`. Deshalb überschreiben sich
 auch zwei Geräte mit demselben Namen nie, und es gehen keine Änderungen verloren, wenn mehrere gleichzeitig arbeiten.
 Beim Zusammenführen gilt:
 
@@ -191,7 +196,7 @@ Link direkt öffnet, hängt vom Gerät ab.
 - Unter Einstellungen bei «Verschlüsselung» (oder beim ersten Abgleich) legst du ein Passwort fest. Alle in der Familie
   verwenden dasselbe. Die Dateien im gemeinsamen Ordner sind dann mit **AES-256-GCM** verschlüsselt, der Schlüssel entsteht
   per **PBKDF2-SHA-256** (300 000 Durchläufe, eigener Salt pro Datei) im Browser. Das Passwort verlässt das Gerät nie.
-- Verschlüsselte Dateien heissen `Steuerordner_Sync_<Name>_<Kürzel>.zip.enc`. Beim Einschalten wird die lesbare Fassung der
+- Verschlüsselte Dateien heissen `Ordni_Sync_<Name>_<Kürzel>.zip.enc`. Beim Einschalten wird die lesbare Fassung der
   eigenen Datei aus dem Ordner entfernt (Chrome); auf dem iPhone löschst du sie selbst in der Dateien-App.
 - Die App erkennt verschlüsselte Dateien am Dateikopf und fragt beim Abgleich nach dem Passwort, falls es fehlt. Ein falsches
   Passwort wird abgelehnt und nicht gespeichert. Lesbare (alte) Dateien werden weiter gelesen.

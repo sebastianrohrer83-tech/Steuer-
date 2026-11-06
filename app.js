@@ -587,13 +587,19 @@ async function exportYearZip(year, onlyNotUploaded) {
 }
 
 // Jedes Gerät schreibt nur seine eigene Datei (Name + Gerätekürzel). So überschreiben sich zwei Geräte derselben Person nie.
-const syncFileName = (name, dev) => `Steuerordner_Sync_${name ? slug(name) : 'Geraet'}${dev ? '_' + dev : ''}.zip`;
+// Dateiname der Sync-Dateien. Bis Version 1.13 hiessen sie «Steuerordner_Sync_…»: Solche Dateien liest die App weiter und ersetzt die eigene.
+const SYNC_PREFIX = 'Ordni_Sync_', SYNC_PREFIX_OLD = 'Steuerordner_Sync_';
+const syncFileName = (name, dev, prefix = SYNC_PREFIX) => `${prefix}${name ? slug(name) : 'Geraet'}${dev ? '_' + dev : ''}.zip`;
 async function getDeviceId() {
   let d = await getSetting('deviceId', '');
   if (!d) { d = Math.random().toString(36).slice(2, 6).padEnd(4, '0'); await setSetting('deviceId', d); }
   return d;
 }
-async function ownSyncNames() { const plain = syncFileName(await ensureUserName(), await getDeviceId()); return { plain, enc: plain + '.enc' }; }
+async function ownSyncNames() {
+  const name = await ensureUserName(), dev = await getDeviceId();
+  const plain = syncFileName(name, dev), old = syncFileName(name, dev, SYNC_PREFIX_OLD);
+  return { plain, enc: plain + '.enc', oldPlain: old, oldEnc: old + '.enc' };
+}
 // Eigene Dateien verschlüsselt schreiben? Das Passwort bleibt auch nach dem Ausschalten gespeichert,
 // damit verschlüsselte Dateien der anderen weiter gelesen werden können.
 async function encOn() { return !!(await getSetting('syncPass', '')) && !(await getSetting('syncEncOff', false)); }
@@ -730,7 +736,7 @@ const canWriteFolder = () => typeof window.showDirectoryPicker === 'function';
 const quiet = { running: false };
 let autoSaving = false;
 const seenFiles = new Map(); // Dateiname -> «Grösse:Änderungszeit»: unveränderte Dateien nicht nochmals einlesen
-const SYNC_NAME = /^Steuerordner_Sync.*\.zip(\.enc)?$/i;
+const SYNC_NAME = /^(Ordni|Steuerordner)_Sync.*\.zip(\.enc)?$/i;
 
 async function folderAccess(dir, ask = true) {
   const opt = { mode: 'readwrite' };
@@ -756,7 +762,7 @@ async function pickSyncFolder(storage) {
 // Liest die Dateien der anderen Geräte im Ordner ein und schreibt danach die eigene Datei.
 async function syncWithFolder(dir, { force = false, noWrite = false } = {}) {
   const names = await ownSyncNames();
-  const mine = new Set([names.plain, names.enc]);
+  const mine = new Set([names.plain, names.enc, names.oldPlain, names.oldEnc]);
   const total = { added: 0, updated: 0, deleted: 0, folders: 0 };
   let skipped = 0, okFiles = 0, wrongPass = 0, needPass = false;
   for await (const [name, h] of dir.entries()) {
@@ -793,7 +799,10 @@ async function syncWithFolder(dir, { force = false, noWrite = false } = {}) {
     await w.write(blob);
     await w.close();
     // Die andere Fassung der eigenen Datei entfernen: nach dem Verschlüsseln soll keine lesbare Kopie liegen bleiben.
-    try { await dir.removeEntry(pass ? names.plain : names.enc); } catch { /* gab es nicht */ }
+    // Ebenso die eigene Datei mit dem alten Namen «Steuerordner_Sync_…» (Version 1.13 und früher).
+    for (const n of [pass ? names.plain : names.enc, names.oldPlain, names.oldEnc]) {
+      try { await dir.removeEntry(n); } catch { /* gab es nicht */ }
+    }
     await setSetting('lastSync', t0);
     await setSetting('encDirty', false);
     wrote = true;
