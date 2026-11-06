@@ -187,6 +187,17 @@ Link direkt öffnet, hängt vom Gerät ab.
 - Ohne Passwort lassen sich die Dateien im Ordner nicht wiederherstellen. Die Belege in den Apps bleiben erhalten.
 - Nicht verschlüsselt sind die Daten in der App auf dem Gerät und PDFs, die du selbst teilst.
 
+## Datenschutzseite
+
+Unter `#/privacy` (Einstellungen, «Datenschutz lesen»; auch aus der Hilfe und der Einführung) beschreibt die App in einfachen Worten, was
+gespeichert wird, was sie nicht tut, was beim Aufrufen passiert (Hosting bei Vercel, USA), wie Abgleich, Kamera und Teilen funktionieren,
+wie man löscht und welche Rechte man hat (Schweizer Datenschutzgesetz, EDÖB). Der Test `test-privacy.js` belegt die Kernaussagen: Rundgang
+durch alle Seiten ohne Anfragen an fremde Adressen, keine Cookies, im Browser-Speicher höchstens der Zeitstempel des Installationshinweises.
+
+**Noch zu tun:** In `app.js` die Konstante `OPERATOR` (Name, Adresse, E-Mail der Betreiberin oder des Betreibers) ausfüllen. Leere Felder
+werden nicht angezeigt; solange alles leer ist, steht ein neutraler Hinweis. Der Text ist eine verständliche Beschreibung der
+Funktionsweise und keine Rechtsberatung. Vor einem Verkauf sollte ihn eine Fachperson prüfen.
+
 ## Tipp «So fängst du an»
 
 Auf der Startseite steht ganz oben der Tipp «So fängst du an» mit dem Kästchen «Gelesen, nicht mehr anzeigen». Er bleibt, bis man das

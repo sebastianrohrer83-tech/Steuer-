@@ -1652,7 +1652,8 @@ async function renderSettings() {
       </div>
 
       <h3>Sicherheit deiner Daten</h3>
-      <p class="muted">Diese App sendet keine Daten ins Internet. Scans, Ordner und Notizen bleiben auf diesem Gerät. Beim Teilen eines PDFs entscheidest du selbst, wohin es geht.</p>
+      <a class="btn" href="#/privacy">🔒 Datenschutz lesen</a>
+      <p class="muted">Diese App sendet deine Belege an keinen Server der App. Scans, Ordner und Notizen bleiben auf diesem Gerät, bis du sie selbst abgleichst oder ein PDF teilst. Dabei entscheidest du, wohin sie gehen.</p>
       <p class="muted">${esc(storageInfo)}${persisted ? ' · Speicher ist dauerhaft geschützt' : ''}</p>
       ${!persisted && navigator.storage && navigator.storage.persist ? '<button class="btn" data-action="persist">Speicher dauerhaft schützen</button>' : ''}
       <p class="muted">Version ${APP_VERSION}</p>
@@ -1804,7 +1805,8 @@ async function renderWelcome(params) {
       </ul>
       <p class="muted small">Deine Belege liegen auf deinem Handy, in dieser App. Wenn du möchtest, teilst du sie mit der Familie. Das legst du gleich fest.</p>
       <div class="actions"><button class="btn primary huge" data-action="next">Los geht's</button></div>
-      ${w.again ? '' : '<button class="skip" data-action="skip">Einführung überspringen</button>'}`;
+      ${w.again ? '' : '<button class="skip" data-action="skip">Einführung überspringen</button>'}
+      <p class="muted small center"><a href="#/privacy?from=welcome">Datenschutz</a></p>`;
   } else if (w.step === 1) {
     body = `
       <div class="bigicon">✏️</div>
@@ -1876,6 +1878,78 @@ async function renderWelcome(params) {
   };
 }
 
+// Angaben zum Betreiber der App (für die Datenschutzseite). Leere Felder werden nicht angezeigt.
+const OPERATOR = { name: '', adresse: '', email: '' };
+const PRIVACY_STAND = '6. November 2026';
+
+async function renderPrivacy(params) {
+  const fromWelcome = params.get('from') === 'welcome';
+  setHeader('Datenschutz', { back: fromWelcome ? '#/welcome' : '#/settings' });
+  const op = [OPERATOR.name, OPERATOR.adresse, OPERATOR.email].filter(Boolean);
+  view().innerHTML = `
+    <section class="legal">
+      <div class="upsteps">
+        <strong>Kurz gesagt</strong>
+        <p>Deine Belege bleiben auf deinem Gerät. Die App hat keine Benutzerkonten, keine Werbung und keine Analyse. Nur wenn du es selbst auslöst, gelangt etwas aus der App heraus: beim Abgleich mit der Familie und beim Teilen eines PDFs.</p>
+      </div>
+
+      <h3>Wer ist verantwortlich?</h3>
+      ${op.length ? `<p>${op.map(esc).join('<br>')}</p>` : '<p>Die Kontaktangaben der Betreiberin oder des Betreibers dieser App werden hier noch ergänzt.</p>'}
+      <p>Verantwortlich ist, wer die App betreibt. Es gilt das Schweizer Datenschutzgesetz.</p>
+
+      <h3>Was auf deinem Gerät gespeichert wird</h3>
+      <ul>
+        <li>Die Fotos und PDFs deiner Belege, ihre Namen, Notizen und Beträge.</li>
+        <li>Die Namen der Personen im Haushalt und deine Angaben für die Checkliste.</li>
+        <li>Einstellungen: Steuerjahr, Speicherort, dein Name, wenn du ihn einträgst.</li>
+        <li>Wenn du es einschaltest: das Passwort für die Sync-Dateien und den Link zu deinem Google-Drive-Ordner.</li>
+        <li>Ein technischer Zwischenspeicher mit den App-Dateien, damit die App auch ohne Internet läuft, und ein Zeitstempel, wann der Installationshinweis wieder erscheint.</li>
+      </ul>
+      <p>Das alles liegt im Speicher deines Browsers bzw. deiner installierten App, auf deinem Gerät. Es liegt nicht auf einem Server der App.</p>
+
+      <h3>Was die App nicht tut</h3>
+      <ul>
+        <li>Sie verlangt kein Konto und keine E-Mail-Adresse.</li>
+        <li>Sie setzt keine Cookies und enthält keine Werbung und keine Analyse- oder Tracking-Dienste.</li>
+        <li>Sie lädt deine Belege nicht auf einen Server der App hoch. Das Zuschneiden und Aufbereiten der Scans passiert auf deinem Gerät.</li>
+        <li>Sie lädt keine Schriften, Skripte oder Bilder von fremden Servern nach.</li>
+      </ul>
+
+      <h3>Was beim Aufrufen der App passiert</h3>
+      <p>Die App-Dateien werden von einem Hosting-Anbieter ausgeliefert (Vercel Inc., USA). Beim Aufruf fallen dort technisch bedingt Verbindungsdaten an, zum Beispiel IP-Adresse, Zeitpunkt, Browser und die abgerufene Datei. Der Anbieter kann sie protokollieren. Deine Belege und Eingaben sind darin nicht enthalten, denn sie verlassen dein Gerät dabei nicht. Weil der Anbieter in den USA sitzt, kann diese Bearbeitung im Ausland stattfinden. Für Updates lädt die App neue Dateien vom selben Server nach.</p>
+
+      <h3>Kamera</h3>
+      <p>Die App fragt vor dem ersten Scan, ob sie die Kamera nutzen darf. Das Bild wird nur auf deinem Gerät verarbeitet. Die Erlaubnis kannst du jederzeit in den Einstellungen deines Geräts zurücknehmen.</p>
+
+      <h3>Abgleich mit der Familie und Teilen</h3>
+      <ul>
+        <li>«Jetzt speichern» schreibt eine Datei mit deinen Belegen in den Ordner, den du gewählt hast (zum Beispiel in iCloud Drive, Google Drive oder OneDrive). Der Dienst und alle, die Zugriff auf den Ordner haben, können die Datei sehen. Für diese Dienste gelten deren eigene Datenschutzbestimmungen.</li>
+        <li>Ohne Passwort ist die Datei lesbar. Mit Passwort ist sie verschlüsselt (AES-256). Das Passwort liegt nur auf deinem Gerät und niemand kann es für dich wiederherstellen.</li>
+        <li>Der Dateiname enthält deinen Namen und ein Gerätekürzel.</li>
+        <li>Wenn du ein PDF teilst, entscheidest du im Teilen-Menü deines Geräts, wohin es geht.</li>
+        <li>Der Knopf «Google Drive öffnen» führt dich auf die Seite von Google. Ab dort gelten die Regeln von Google.</li>
+      </ul>
+
+      <h3>Besonders schützenswerte Angaben</h3>
+      <p>Steuerbelege enthalten oft heikle Angaben: Lohn, Vermögen, Gesundheitskosten, Unterhalt, Familienverhältnisse. Die App hat keine eigene Sperre. Wer dein entsperrtes Gerät in der Hand hat, kann die Belege sehen. Schütze dein Gerät deshalb mit einem Sperrcode, und verschlüssle die Sync-Dateien, wenn du sie teilst.</p>
+
+      <h3>Löschen und Kontrolle</h3>
+      <ul>
+        <li>Ein gelöschter Beleg liegt 30 Tage im Papierkorb und wird danach endgültig gelöscht. Beim Abgleich wird die Löschung an die Geräte der Familie weitergegeben.</li>
+        <li>Dateien im gemeinsamen Ordner löschst du selbst in deinem Cloud-Dienst.</li>
+        <li>Alles entfernen: die App vom Home-Bildschirm löschen und in den Browser-Einstellungen die Website-Daten dieser Adresse löschen. Sichere vorher, was du behalten möchtest.</li>
+        <li>Weil deine Daten bei dir liegen, siehst und änderst du sie direkt in der App.</li>
+      </ul>
+
+      <h3>Deine Rechte</h3>
+      <p>Du kannst Auskunft darüber verlangen, welche Daten die Betreiberin oder der Betreiber über dich bearbeitet, sowie Berichtigung und Löschung. Das sind in der Regel nur die Verbindungsdaten beim Hosting-Anbieter. Schreibe dazu an die Kontaktadresse oben. Du kannst dich auch an den Eidgenössischen Datenschutz- und Öffentlichkeitsbeauftragten (EDÖB) wenden.</p>
+
+      <h3>Änderungen</h3>
+      <p>Ändert sich etwas an der Funktionsweise, passen wir diese Seite an. Stand: ${PRIVACY_STAND}, App-Version ${APP_VERSION}.</p>
+      <p class="muted small">Die Checkliste ist eine allgemeine Orientierung und keine Steuerberatung.</p>
+    </section>`;
+}
+
 async function renderHelp() {
   setHeader('Hilfe', { back: '#/' });
   view().innerHTML = `
@@ -1920,8 +1994,11 @@ async function renderHelp() {
       <details><summary>Ich habe einen Beleg aus Versehen gelöscht. Was nun?</summary>
         <p>Gelöschte Belege liegen ${TRASH_DAYS} Tage im Papierkorb. Öffne Einstellungen, dann «Papierkorb», und tippe auf <strong>Zurückholen</strong>. Danach ist der Beleg endgültig weg, auch bei der Familie.</p>
       </details>
+      <details><summary>Was macht die App mit meinen Daten?</summary>
+        <p>Deine Belege bleiben auf deinem Gerät. Es gibt kein Konto, keine Werbung und keine Analyse. Alles Weitere steht in der <a href="#/privacy">Datenschutzerklärung</a>.</p>
+      </details>
       <details><summary>Sind meine Daten sicher? Kann etwas verloren gehen?</summary>
-        <p>Die Belege bleiben auf deinem Gerät, die App sendet nichts ins Internet. Damit nichts verloren geht, installiere die App auf dem Home-Bildschirm und speichere ab und zu <strong>Meine Datei</strong> in den Einstellungen. Diese Datei ist deine Sicherung.</p>
+        <p>Die Belege bleiben auf deinem Gerät, die App schickt sie an keinen Server. Damit nichts verloren geht, installiere die App auf dem Home-Bildschirm und speichere ab und zu <strong>Meine Datei</strong> in den Einstellungen. Diese Datei ist deine Sicherung.</p>
       </details>
       <details><summary>Wie lege ich die App auf den Home-Bildschirm?</summary>
         <ol>
@@ -2168,7 +2245,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.12.2';
+const APP_VERSION = '1.13.0';
 // Anzeigen nacheinander ausführen: Sonst kann eine ältere, noch laufende Anzeige die neuere überschreiben
 // (zum Beispiel wenn man während des Abgleichs auf eine andere Seite wechselt).
 let rendering = null, renderAgain = false, againKeep = true;
@@ -2192,7 +2269,7 @@ async function doRender(keepScroll = false) {
   const params = new URLSearchParams(query);
   try {
     // Erster Start: Einführung zeigen (bestehende Installationen haben schon ein Jahr gespeichert)
-    if (parts[0] !== 'welcome' && !(await getSetting('onboarded')) && !(await getSetting('year'))) { location.hash = '#/welcome'; return; }
+    if (parts[0] !== 'welcome' && parts[0] !== 'privacy' && !(await getSetting('onboarded')) && !(await getSetting('year'))) { location.hash = '#/welcome'; return; }
     if (!trashPurged) { trashPurged = true; await purgeTrash().catch(() => {}); }
     if (parts[0] === 'welcome') await renderWelcome(params);
     else if (parts[0] === 'help') await renderHelp();
@@ -2200,6 +2277,7 @@ async function doRender(keepScroll = false) {
     else if (parts[0] === 'checklist') await renderChecklist();
     else if (parts[0] === 'summary') await renderSummary();
     else if (parts[0] === 'trash') await renderTrash();
+    else if (parts[0] === 'privacy') await renderPrivacy(params);
     else if (parts[0] === 'f' && parts[1]) await renderFolder(parts[1]);
     else if (parts[0] === 'd' && parts[1]) await renderDoc(parts[1], params);
     else if (parts[0] === 'settings') await renderSettings();
