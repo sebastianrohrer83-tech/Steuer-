@@ -132,6 +132,13 @@ Getestet (Playwright, drei Geräte plus ein iPhone-Fall ohne Ordnerzugriff, geme
 Dokumente anlegen und abgleichen, Hintergrund-Abgleich, Löschen von Belegen und Ordnern, Umbenennen, zwei Geräte mit
 gleichem Namen, Abbrechen im Assistenten. Auf einem echten iPhone und mit echtem iCloud-/Google-Drive-Ordner ist es nicht geprüft.
 
+## Anderer Dienst (OneDrive, Dropbox …)
+
+Neben iCloud Drive und Google Drive gibt es die Auswahl «Familie mit anderem Dienst». Der Ablauf ist derselbe: gemeinsamer Ordner
+«Steuer», jedes Gerät schreibt seine eigene Datei hinein. Die App sieht nur den Ordner, nicht den Dienst. Er muss in der Dateien-App
+(iPhone), im Dateimanager (Android) oder als Ordner am Computer erscheinen. Getestet ist nur mit einem nachgestellten Ordner, nicht mit echtem
+OneDrive oder Dropbox.
+
 ## Absprung zu Google Drive
 
 Wer «Familie mit Google Drive» wählt, sieht auf der Startseite und in den Einstellungen den Knopf **Google Drive öffnen**. Er öffnet

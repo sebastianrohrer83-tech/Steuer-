@@ -78,6 +78,7 @@ const STORAGES = {
   local: { icon: '👤', label: 'Nur ich', short: 'Nur dieses Handy', text: 'Die Belege liegen nur auf diesem Handy. Ich sichere sie ab und zu selbst.' },
   icloud: { icon: '☁️', label: 'Familie mit iCloud Drive', short: 'Familie über iCloud Drive', text: 'Alle teilen einen Ordner in iCloud Drive.' },
   gdrive: { icon: '📁', label: 'Familie mit Google Drive', short: 'Familie über Google Drive', text: 'Alle teilen einen Ordner in Google Drive. Geht auch mit Android.' },
+  other: { icon: '🗂️', label: 'Familie mit anderem Dienst', short: 'Familie über OneDrive, Dropbox …', text: 'OneDrive, Dropbox oder ein anderer Dienst. Alle teilen einen Ordner.' },
 };
 
 // Absprung zu Google Drive: der gespeicherte Ordner-Link, sonst die Startseite von Drive
@@ -110,6 +111,16 @@ function storageGuideHtml(kind) {
         <li><strong>Jede Person:</strong> Auf der Startseite auf <em>Jetzt speichern</em> tippen. Auf dem iPhone «In Dateien sichern» wählen und den Ordner «Steuer» in Drive auswählen. Auf Android oder am Computer wählst du den Ordner einmal, danach geht es von selbst.</li>
         <li><strong>Zum Abgleich:</strong> Auf Android und am Computer erledigt <em>Jetzt speichern</em> das gleich mit. Auf dem iPhone unter Einstellungen <em>Dateien einlesen</em> tippen und im Ordner «Steuer» alle Dateien markieren.</li>
       </ol>`;
+  }
+  if (kind === 'other') {
+    return `<p><strong>So richtet ihr den gemeinsamen Ordner ein:</strong></p>
+      <ol class="steps">
+        <li><strong>Jede Person:</strong> Die App des Dienstes installieren (zum Beispiel OneDrive oder Dropbox) und anmelden. Auf dem iPhone in der Dateien-App unter «…», «Bearbeiten» den Dienst einschalten.</li>
+        <li><strong>Einmalig, eine Person:</strong> Im Dienst einen Ordner «Steuer» anlegen und mit den Konten der Familie teilen (Bearbeiten erlauben).</li>
+        <li><strong>Jede Person:</strong> Auf der Startseite auf <em>Jetzt speichern</em> tippen. Auf dem iPhone «In Dateien sichern» wählen und den Ordner «Steuer» auswählen. Auf Android oder am Computer wählst du den Ordner einmal, danach geht es von selbst.</li>
+        <li><strong>Zum Abgleich:</strong> Auf Android und am Computer erledigt <em>Jetzt speichern</em> das gleich mit. Auf dem iPhone unter Einstellungen <em>Dateien einlesen</em> tippen und im Ordner «Steuer» alle Dateien markieren.</li>
+      </ol>
+      <p class="muted small">Das klappt mit jedem Dienst, der in der Dateien-App, im Dateimanager oder als Ordner am Computer erscheint. Die App sieht nur den Ordner, nicht den Dienst.</p>`;
   }
   return `<p>Deine Belege liegen auf diesem Handy. Damit nichts verloren geht, speichere ab und zu eine <strong>Sicherung</strong>:</p>
     <ol class="steps">
@@ -631,7 +642,7 @@ async function folderAccess(dir, ask = true) {
 }
 
 async function pickSyncFolder(storage) {
-  const where = storage === 'gdrive' ? 'in Google Drive' : storage === 'icloud' ? 'in iCloud Drive' : 'an einem sicheren Ort, zum Beispiel in iCloud Drive oder Google Drive';
+  const where = storage === 'gdrive' ? 'in Google Drive' : storage === 'icloud' ? 'in iCloud Drive' : storage === 'other' ? 'in OneDrive, Dropbox oder eurem Dienst' : 'an einem sicheren Ort, zum Beispiel in iCloud Drive oder Google Drive';
   const go = await dialog(`
     <h2>Ordner einmalig auswählen</h2>
     <p>Wähle gleich den gemeinsamen Ordner ${esc(where)} (zum Beispiel «Steuer»). Danach speichert die App ohne weitere Fragen genau dort hinein.</p>
@@ -1966,7 +1977,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.10.1';
+const APP_VERSION = '1.10.2';
 async function render(keepScroll = false) {
   const scrollY = window.scrollY;
   revokeUrls();
