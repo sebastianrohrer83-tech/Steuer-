@@ -172,12 +172,30 @@ function busy(on, text = 'Bitte warten …') {
 // ---------------------------------------------------------------------------
 // opts.onValue(wert) läuft sofort beim Tippen auf einen Knopf (noch vor dem Schliessen). Das ist nötig, wenn danach die
 // Fotoauswahl geöffnet werden soll: Safari auf dem iPhone erlaubt das nur direkt beim Tippen.
+// Dialoge mit Eingabefeld sitzen oben und folgen dem sichtbaren Bereich: Auf dem iPhone schiebt sich die Tastatur über den
+// Seitenrand, ein Dialog am unteren Rand wäre sonst verdeckt (Feld und Knöpfe nicht mehr zu sehen).
+function keepAboveKeyboard(d) {
+  d.classList.add('top');
+  const vv = window.visualViewport;
+  const fit = () => {
+    if (!vv) return;
+    d.style.maxHeight = Math.max(180, vv.height - 24) + 'px';
+    d.style.transform = `translateY(${Math.round(vv.offsetTop)}px)`;
+  };
+  if (vv) { vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit); fit(); }
+  return () => {
+    d.classList.remove('top');
+    d.style.maxHeight = ''; d.style.transform = '';
+    if (vv) { vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit); }
+  };
+}
 function dialog(html, opts = {}) {
   return new Promise((resolve) => {
     const d = $('#dlg');
     d.innerHTML = `<form method="dialog" class="dlg-form">${html}</form>`;
     const form = d.querySelector('form');
-    const done = (v) => { d.close(); d.innerHTML = ''; resolve(v); };
+    let cleanup = () => {};
+    const done = (v) => { cleanup(); d.close(); d.innerHTML = ''; resolve(v); };
     form.addEventListener('click', (e) => {
       const btn = e.target.closest('button[data-value]');
       if (!btn) return;
@@ -196,6 +214,7 @@ function dialog(html, opts = {}) {
       done(data);
     });
     d.addEventListener('cancel', () => done(null), { once: true });
+    if (form.querySelector('input[type=text], input[type=password], input[type=url], textarea')) cleanup = keepAboveKeyboard(d);
     d.showModal();
     const first = form.querySelector('input[type=text], input:not([type=hidden]), select, textarea');
     if (first) { first.focus(); if (first.select) first.select(); }
@@ -2258,7 +2277,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.14.0';
+const APP_VERSION = '1.14.1';
 // Anzeigen nacheinander ausführen: Sonst kann eine ältere, noch laufende Anzeige die neuere überschreiben
 // (zum Beispiel wenn man während des Abgleichs auf eine andere Seite wechselt).
 let rendering = null, renderAgain = false, againKeep = true;

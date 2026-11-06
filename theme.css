@@ -291,3 +291,13 @@ select, input[type=text], input[type=password], input[type=url], input[type=numb
 #title .wm { height: 24px; width: auto; display: block; margin: 0 auto; }
 .welcome .bigicon.logo { background: var(--hero); box-shadow: 0 24px 34px -18px rgba(15, 31, 61, .6); }
 .welcome .bigicon.logo svg { width: 64px; height: 64px; display: block; }
+
+/* Dialoge mit Eingabefeld: oben statt unten, damit die Tastatur sie nicht verdeckt */
+dialog.top { margin: 12px auto auto; border-radius: 26px; padding-bottom: 0; animation: dlgfade .18s ease-out both; }
+@media (min-width: 640px) { dialog.top { margin: 8vh auto auto; } }
+@keyframes dlgfade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { dialog.top { animation: none; } }
+dialog.top .dlg-form { padding-bottom: 0; }
+dialog.top .dlg-actions:last-child { position: sticky; bottom: 0; background: var(--card); padding: 12px 0 calc(14px + env(safe-area-inset-bottom)); margin-top: 0; z-index: 1; box-shadow: 0 -10px 12px -10px rgba(15, 31, 61, .2); }
+dialog.top .dlg-form::before { display: none; }
+dialog.top .dlg-form { padding-top: 22px; }

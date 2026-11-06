@@ -11,6 +11,13 @@ Kantone gleich. Es gibt keine Kantonswahl und keinen Link zu einem bestimmten St
 - Export als PDF pro Beleg oder als ZIP-Paket pro Ordner / pro Steuerjahr – bereit zum Hochladen.
 - Status «hochgeladen» pro Dokument, Fortschrittsanzeige, Backup und Wiederherstellung.
 
+## Dialoge und Tastatur (iPhone)
+
+Auf dem iPhone legt sich die Tastatur über den Seitenrand, ohne die Seite zu verkleinern. Ein Dialog am unteren Rand wäre dann verdeckt
+(Feld und Knöpfe unsichtbar). Dialoge mit Eingabefeld sitzen deshalb oben, folgen dem sichtbaren Bereich (`visualViewport`) und
+behalten die Knöpfe am unteren Rand des Dialogs sichtbar. Dialoge ohne Eingabefeld bleiben unten. Der Test `test-keyboard.js` bildet die
+Tastatur mit einem nachgebauten `visualViewport` nach, nicht mit einer echten iOS-Tastatur.
+
 ## Marke Ordni
 
 Die App heisst **Ordni** («der Steuerordner für die Familie»). Name, Logo und Farben stehen in `brand/`: Wortmarke (`wordmark*.svg`), Symbol
