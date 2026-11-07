@@ -103,7 +103,7 @@ function storageGuideHtml(kind) {
     return `<p><strong>So richtet ihr den gemeinsamen Ordner ein:</strong></p>
       <ol class="steps">
         <li><strong>Einmalig, eine Person:</strong> In der Dateien-App in <em>iCloud Drive</em> einen Ordner «Steuer» anlegen, gedrückt halten, «Teilen», «Zusammenarbeiten» und die Familie einladen (Bearbeiten erlauben).</li>
-        <li><strong>Jede Person:</strong> Auf der Startseite auf <em>Jetzt speichern</em> tippen. Auf dem iPhone «In Dateien sichern» wählen und den Ordner «Steuer» auswählen. Auf Android oder am Computer wählst du den Ordner einmal, danach geht es von selbst.</li>
+        <li><strong>Jede Person:</strong> Auf der Startseite auf <em>Jetzt speichern</em> tippen. Auf dem iPhone «In Dateien sichern» wählen, den Ordner «Steuer» öffnen (nicht nur die Ansicht «Geteilt von mir»: dort bleibt «Sichern» grau) und tippe auf «Sichern». Auf Android oder am Computer wählst du den Ordner einmal, danach geht es von selbst.</li>
         <li><strong>Zum Abgleich:</strong> Auf Android und am Computer erledigt <em>Jetzt speichern</em> das gleich mit. Auf dem iPhone unter Einstellungen <em>Dateien einlesen</em> tippen und im Ordner «Steuer» alle Dateien markieren.</li>
       </ol>`;
   }
@@ -112,7 +112,7 @@ function storageGuideHtml(kind) {
       <ol class="steps">
         <li><strong>Jede Person:</strong> Google-Drive-App installieren und in der Dateien-App unter «…», «Bearbeiten» den Eintrag «Drive» einschalten.</li>
         <li><strong>Einmalig, eine Person:</strong> In Google Drive einen Ordner «Steuer» anlegen und mit den Google-Konten der Familie teilen (Bearbeiter).</li>
-        <li><strong>Jede Person:</strong> Auf der Startseite auf <em>Jetzt speichern</em> tippen. Auf dem iPhone «In Dateien sichern» wählen und den Ordner «Steuer» in Drive auswählen. Auf Android oder am Computer wählst du den Ordner einmal, danach geht es von selbst.</li>
+        <li><strong>Jede Person:</strong> Auf der Startseite auf <em>Jetzt speichern</em> tippen. Auf dem iPhone «In Dateien sichern» wählen, den Ordner «Steuer» öffnen (nicht nur die Ansicht «Geteilt von mir»: dort bleibt «Sichern» grau) und tippe auf «Sichern». Auf Android oder am Computer wählst du den Ordner einmal, danach geht es von selbst.</li>
         <li><strong>Zum Abgleich:</strong> Auf Android und am Computer erledigt <em>Jetzt speichern</em> das gleich mit. Auf dem iPhone unter Einstellungen <em>Dateien einlesen</em> tippen und im Ordner «Steuer» alle Dateien markieren.</li>
       </ol>`;
   }
@@ -121,7 +121,7 @@ function storageGuideHtml(kind) {
       <ol class="steps">
         <li><strong>Jede Person:</strong> Die App des Dienstes installieren (zum Beispiel OneDrive oder Dropbox) und anmelden. Auf dem iPhone in der Dateien-App unter «…», «Bearbeiten» den Dienst einschalten.</li>
         <li><strong>Einmalig, eine Person:</strong> Im Dienst einen Ordner «Steuer» anlegen und mit den Konten der Familie teilen (Bearbeiten erlauben).</li>
-        <li><strong>Jede Person:</strong> Auf der Startseite auf <em>Jetzt speichern</em> tippen. Auf dem iPhone «In Dateien sichern» wählen und den Ordner «Steuer» auswählen. Auf Android oder am Computer wählst du den Ordner einmal, danach geht es von selbst.</li>
+        <li><strong>Jede Person:</strong> Auf der Startseite auf <em>Jetzt speichern</em> tippen. Auf dem iPhone «In Dateien sichern» wählen, den Ordner «Steuer» öffnen (nicht nur die Ansicht «Geteilt von mir»: dort bleibt «Sichern» grau) und tippe auf «Sichern». Auf Android oder am Computer wählst du den Ordner einmal, danach geht es von selbst.</li>
         <li><strong>Zum Abgleich:</strong> Auf Android und am Computer erledigt <em>Jetzt speichern</em> das gleich mit. Auf dem iPhone unter Einstellungen <em>Dateien einlesen</em> tippen und im Ordner «Steuer» alle Dateien markieren.</li>
       </ol>
       <p class="muted small">Das klappt mit jedem Dienst, der in der Dateien-App, im Dateimanager oder als Ordner am Computer erscheint. Die App sieht nur den Ordner, nicht den Dienst.</p>`;
@@ -566,15 +566,19 @@ function download(blob, name) {
   a.remove();
 }
 // Ergebnis: true = geteilt oder heruntergeladen, false = abgebrochen
-async function shareOrDownload(blob, name, title) {
+// Kein «title» beim Teilen: iOS legt ihn sonst als zweites Objekt (Text) dazu, «In Dateien sichern» speichert dann «2 Objekte»
+// und legt neben der Datei eine Textdatei «Text» im Ordner ab. Mit strict wird ein Fehler gemeldet, statt stumm herunterzuladen.
+async function shareOrDownload(blob, name, title, { strict = false } = {}) {
   // Verschlüsselte Dateien haben keinen bekannten Typ: iOS lehnt sie sonst manchmal ab, dann mit Zip-Typ nochmals versuchen
   const variants = [new File([blob], name, { type: blob.type })];
   if (blob.type !== 'application/zip') variants.push(new File([blob], name, { type: 'application/zip' }));
+  let failed = null;
   for (const file of variants) {
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: title || name }); return true; } catch (e) { if (e.name === 'AbortError') return false; }
+      try { await navigator.share({ files: [file] }); return true; } catch (e) { if (e.name === 'AbortError') return false; failed = e; }
     }
   }
+  if (failed && strict) { const err = new Error(`Das Teilen-Menü liess sich nicht öffnen (${failed.name || 'Fehler'}). Tippe nochmals auf «Jetzt speichern».`); err.shareFailed = true; throw err; }
   download(blob, name);
   return true;
 }
@@ -922,6 +926,7 @@ async function syncViaFiles() {
   let t0 = 0, blob = null, blobP = null, locked = [];
   const build = () => { t0 = Date.now(); blobP = buildSyncFile(); return blobP; };
   build();
+  let shareP = null;
   const res = dialog(`
     <h2>Abgleich mit der Familie</h2>
     <p><strong>Schritt 1:</strong> Hole die Änderungen der anderen. Tippe auf «Dateien wählen», öffne den gemeinsamen Ordner und markiere <em>alle</em> Dateien. Überspringe den Schritt, wenn du allein arbeitest.</p>
@@ -932,7 +937,10 @@ async function syncViaFiles() {
       <button type="button" id="wizPassBtn" class="btn small">🔓 Entsperren</button>
     </div>
     <p><strong>Schritt 2:</strong> Sichere deine Datei im selben Ordner. Ersetze dabei die ältere Datei «<span id="wizName">${esc(fname)}</span>».</p>
-    <div class="dlg-actions column"><button type="button" data-value="save" class="btn primary" disabled>Wird vorbereitet …</button><button type="button" data-value="cancel" class="btn ghost">Abbrechen</button></div>`);
+    <div class="dlg-actions column"><button type="button" data-value="save" class="btn primary" disabled>Wird vorbereitet …</button><button type="button" data-value="cancel" class="btn ghost">Abbrechen</button></div>`, {
+    // Das Teilen-Menü muss direkt beim Tippen geöffnet werden, sonst blockiert Safari es
+    onValue: (v) => { if (v === 'save' && blob) shareP = shareOrDownload(blob, fname, 'Ordni Sync-Datei', { strict: true }).then((ok) => ({ ok }), (error) => ({ error })); },
+  });
   const d = $('#dlg');
   const state = d.querySelector('#wizState'), saveBtn = d.querySelector('[data-value=save]'), pick = d.querySelector('#wizFiles');
   const passBox = d.querySelector('#wizPass'), passIn = d.querySelector('#wizPassIn'), passBtn = d.querySelector('#wizPassBtn');
@@ -994,8 +1002,9 @@ async function syncViaFiles() {
     report(locked.length - r.again.length, r);
   };
   if ((await res) !== 'save' || !blob) return;
-  const done = await shareOrDownload(blob, fname, 'Ordni Sync-Datei');
-  if (done) {
+  const r = await shareP;
+  if (r && r.error) { toast(r.error.message, 7000); return; }
+  if (r && r.ok) {
     await setSetting('lastSync', t0);
     await setSetting('encDirty', false);
     toast(`✓ «${fname}» gesichert. Die anderen lesen sie beim nächsten Abgleich ein.`, 5000);
@@ -2308,7 +2317,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.14.3';
+const APP_VERSION = '1.14.4';
 // Anzeigen nacheinander ausführen: Sonst kann eine ältere, noch laufende Anzeige die neuere überschreiben
 // (zum Beispiel wenn man während des Abgleichs auf eine andere Seite wechselt).
 let rendering = null, renderAgain = false, againKeep = true;
