@@ -263,3 +263,10 @@ damit installierte Apps die neue Version laden.
   weissem Tisch oder sehr starkem Schatten findet sie den Rand nicht sicher, dann die Ecken von Hand ziehen.
 - Ohne Kamerazugriff (z. B. Berechtigung verweigert) nimmt die App stattdessen ein Foto über die Kamera-App des Geräts auf
   und führt es durch dieselbe Erkennung.
+
+## Abgleich beim Start
+
+Bei den Speicherorten iCloud Drive, Google Drive und «Anderer Dienst» fragt die App beim Start, ob die Dateien der Familie zusammengeführt werden sollen (nicht öfter als alle drei Minuten, «Später» und «Nicht mehr fragen» sind möglich; Schalter unter Einstellungen).
+
+- **iPhone/iPad:** Eine Web-App darf keinen Ordner von selbst lesen. Die Frage führt darum direkt zu «Dateien wählen»; der gemeinsame Ordner wird jedes Mal neu geöffnet und alle Dateien werden markiert. Verschlüsselte Dateien: die App fragt das Passwort ab.
+- **Chrome am Computer:** Hat der Browser den Ordnerzugriff behalten, läuft der Abgleich im Hintergrund ohne Frage. Sonst fragt die App und gleicht mit «Jetzt abgleichen» ab.

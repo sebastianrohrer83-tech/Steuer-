@@ -241,7 +241,8 @@ function dialog(html, opts = {}) {
       cleanup = () => { stopSwipe(); stopKb(); };
     }
     d.showModal();
-    const first = form.querySelector('input[type=text], input:not([type=hidden]), select, textarea');
+    if (opts.onReady) opts.onReady(d, done);
+    const first = form.querySelector('input[type=text], input:not([type=hidden]):not([type=file]), select, textarea');
     // Ohne Eingabefeld: Fokus auf den Dialog selbst, damit der erste Knopf keinen Fokusrahmen bekommt
     if (first) { first.focus(); if (first.select) first.select(); } else form.focus({ preventScroll: true });
   });
@@ -1011,6 +1012,81 @@ async function syncViaFiles() {
   }
 }
 
+// Gewählte Sync-Dateien einlesen und zusammenführen. Verschlüsselte Dateien: Passwort erfragen.
+async function mergeFilesInteractive(files) {
+  const total = { added: 0, updated: 0, deleted: 0, folders: 0 };
+  let bad = 0, why = '', locked = [], wrongPass = false;
+  const run = async (list) => {
+    locked = [];
+    for (const f of list) {
+      try { const st = await mergeSyncFile(f); for (const k of Object.keys(total)) total[k] += st[k]; } catch (e) {
+        if (e.code === 'NEED_PASS' || e.code === 'WRONG_PASS') locked.push(f); else { bad++; if (!why) why = `«${f.name}»: ${(e && e.message) || e}`; }
+      }
+    }
+  };
+  busy(true, 'Wird abgeglichen …');
+  try {
+    await run(files);
+    if (locked.length) {
+      busy(false);
+      const p = await passDlg({ title: 'Verschlüsselte Dateien', note: 'Einige Dateien sind verschlüsselt. Gib das Passwort ein, das ihr in der Familie verwendet.', okLabel: 'Entsperren' });
+      if (p) {
+        busy(true, 'Wird abgeglichen …');
+        const before = await getSetting('syncPass', '');
+        await setPassphrase(p);
+        const again = locked;
+        await run(again);
+        if (locked.length === again.length) { await setSetting('syncPass', before); await setSetting('encDirty', false); wrongPass = true; }
+      }
+    }
+  } finally { busy(false); }
+  const got = total.added + total.updated + total.deleted + total.folders;
+  if (wrongPass) toast('Das Passwort stimmt nicht.', 5000);
+  else toast(got ? `✓ Abgeglichen: ${total.added} neu, ${total.updated} aktualisiert, ${total.deleted} gelöscht${total.folders ? `, ${total.folders} bei Ordnern oder Checkliste` : ''}.` : bad ? `Nicht lesbar: ${why}` : '✓ Abgeglichen. Es gibt nichts Neues.', bad ? 7000 : 5000);
+  if (got) render(true);
+  return { total, got, bad };
+}
+
+// Beim Start fragen, ob die Dateien der Familie aus dem Speicherort zusammengeführt werden sollen.
+// Auf dem iPhone darf eine Web-App keinen Ordner von selbst lesen: Die Dateien müssen bei jedem Abgleich gewählt werden.
+// Mit Chrome (Computer) läuft der Abgleich im Hintergrund, solange der Browser den Ordnerzugriff behalten hat.
+let mergeAsked = false;
+async function askMergeOnStart() {
+  if (mergeAsked) return;
+  mergeAsked = true;
+  try {
+    const storage = await getSetting('storage', '');
+    if (!['icloud', 'gdrive', 'other'].includes(storage)) return;
+    if ((await getSetting('mergeAsk', true)) === false) return;
+    if (!(await getSetting('userName', '')) || !((await getSetting('onboarded')) || (await getSetting('year')))) return;
+    const route = (location.hash.slice(1) || '/').split('/').filter(Boolean)[0];
+    if (['welcome', 'privacy'].includes(route) || $('#dlg').open || autoSaving) return;
+    if (Date.now() - (await getSetting('mergeAskedAt', 0)) < 3 * 60 * 1000) return; // schnell nochmals geöffnet: nicht nochmals fragen
+    const folderMode = canWriteFolder();
+    if (folderMode) {
+      const dir = await getSetting('syncDir', null);
+      if (dir) { let ok = false; try { ok = await folderAccess(dir, false); } catch { ok = false; } if (ok) return; } // läuft schon im Hintergrund
+    }
+    await setSetting('mergeAskedAt', Date.now());
+    const where = { icloud: 'iCloud Drive', gdrive: 'Google Drive', other: 'deinem Speicherort' }[storage];
+    let chosen = [];
+    const r = await dialog(`<h2>Mit der Familie abgleichen?</h2>
+      <p>${folderMode ? `Neue Belege der anderen aus ${esc(where)} holen und zusammenführen.` : `Neue Belege der anderen aus ${esc(where)} holen. Tippe auf «Dateien wählen», öffne den gemeinsamen Ordner und markiere <em>alle</em> Dateien.`}</p>
+      ${folderMode ? '<div class="dlg-actions column"><button type="button" data-value="sync" class="btn primary">Jetzt abgleichen</button></div>' : '<label class="btn primary filebtn pickover">📂 Dateien wählen<input type="file" id="startFiles" multiple></label>'}
+      <div class="dlg-actions column"><button type="button" data-value="later" class="btn ghost">Später</button><button type="button" data-value="never" class="btn ghost">Nicht mehr fragen</button></div>`, {
+      onReady: (d, finish) => {
+        const inp = d.querySelector('#startFiles');
+        if (inp) inp.onchange = () => { chosen = [...inp.files]; if (chosen.length) finish('files'); };
+      },
+    });
+    if (r === 'never') { await setSetting('mergeAsk', false); toast('Du kannst die Frage unter Einstellungen wieder einschalten.', 4500); }
+    else if (r === 'files') await mergeFilesInteractive(chosen);
+    else if (r === 'sync') await autoSave();
+  } catch (e) {
+    if (!e || e.name !== 'AbortError') console.warn('Abgleich beim Start:', e);
+  }
+}
+
 async function autoSave() {
   if (autoSaving) return;
   autoSaving = true;
@@ -1651,6 +1727,7 @@ async function renderSettings() {
   const enc = await encOn();
   const haveKey = !!(await getSetting('syncPass', ''));
   const driveLink = await getSetting('driveUrl', '');
+  const mergeAsk = (await getSetting('mergeAsk', true)) !== false;
   const trashN = (await trashedDocs()).length;
   let storageInfo = '';
   if (navigator.storage && navigator.storage.estimate) {
@@ -1710,6 +1787,7 @@ async function renderSettings() {
       ${storage === 'gdrive' ? `<div class="row"><a class="btn" href="${esc(driveLink || DRIVE_HOME)}" target="_blank" rel="noopener">📁 Google Drive öffnen</a><button class="btn" data-action="driveLink">${driveLink ? 'Ordner-Link ändern' : 'Link zum Ordner speichern'}</button></div>
       <p class="muted small">${driveLink ? 'Der Knopf öffnet direkt euren gemeinsamen Ordner. Der Link bleibt auf diesem Gerät gespeichert.' : 'Tipp: Öffne in Google Drive den Ordner «Steuer», tippe auf Teilen und «Link kopieren». Füge ihn hier ein, dann öffnet der Knopf direkt diesen Ordner.'}</p>` : ''}
       ${canWriteFolder() && storage ? `<p class="muted">Ordner für «Jetzt speichern»: ${dirName ? `<strong>${esc(dirName)}</strong>` : 'noch nicht gewählt'} <button class="linkbtn inline" data-action="pickDir">${dirName ? 'ändern' : 'jetzt wählen'}</button></p>` : ''}
+      ${storage && storage !== 'local' ? `<label class="check"><input type="checkbox" id="mergeAsk" ${mergeAsk ? 'checked' : ''}> Beim Start fragen, ob die Dateien der Familie zusammengeführt werden sollen</label>` : ''}
       <p class="muted">${sync ? `Letzter Abgleich: ${new Date(sync.last).toLocaleString('de-CH')}${sync.n ? ` · ${sync.n} Änderung(en) seither` : ''}` : 'Noch kein Abgleich durchgeführt.'} Die Datei ist zugleich deine Sicherung.</p>
 
       <h3>Verschlüsselung</h3>
@@ -1734,6 +1812,7 @@ async function renderSettings() {
   $('#scanMode').onchange = (e) => setSetting('scanMode', e.target.value);
   $('#autoCap').onchange = (e) => setSetting('autoCapture', e.target.checked);
   $('#userName').onchange = (e) => setSetting('userName', e.target.value.trim());
+  const maBox = $('#mergeAsk'); if (maBox) maBox.onchange = (e) => setSetting('mergeAsk', e.target.checked);
   view().onclick = async (e) => {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
@@ -1831,7 +1910,7 @@ async function renderSettings() {
       input.value = '';
       input.onchange = async () => {
         if (!input.files[0]) return;
-        try { await mergeSyncFiles([...input.files]); render(); } catch (err) { toast('Fehler: ' + err.message, 5000); }
+        try { await mergeFilesInteractive([...input.files]); render(); } catch (err) { toast('Fehler: ' + err.message, 5000); }
       };
       input.click();
     } else if (a === 'persist') {
@@ -2317,7 +2396,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.14.4';
+const APP_VERSION = '1.15.0';
 // Anzeigen nacheinander ausführen: Sonst kann eine ältere, noch laufende Anzeige die neuere überschreiben
 // (zum Beispiel wenn man während des Abgleichs auf eine andere Seite wechselt).
 let rendering = null, renderAgain = false, againKeep = true;
@@ -2369,6 +2448,7 @@ if (canWriteFolder()) {
 }
 $('#backBtn').addEventListener('click', () => { location.hash = $('#backBtn').dataset.href || '#/'; });
 render();
+setTimeout(askMergeOnStart, 1500);
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
