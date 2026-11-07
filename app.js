@@ -1,4 +1,4 @@
-import { db } from './db.js';
+import { db, onWrite } from './db.js';
 import { makePdf } from './pdfwriter.js';
 import { ZipWriter, readZip } from './zip.js';
 import { scanPages, reviewFiles } from './scanner.js';
@@ -918,6 +918,30 @@ async function quietSync() {
     if (r.got || r.wrote) refreshIfIdle();
   } catch (e) { console.warn('Hintergrund-Abgleich:', e); } finally { quiet.running = false; }
 }
+
+// Automatisch speichern: zwei Sekunden nach der letzten Änderung (Chrome mit Ordnerzugriff).
+// Auf dem iPhone ist das nicht möglich: Eine Web-App darf dort nicht selbst in die Dateien-App schreiben.
+let autoTimer = null, autoHintShown = false;
+function scheduleAutoSave() {
+  if (!canWriteFolder()) return;
+  clearTimeout(autoTimer);
+  const tick = async () => {
+    if (autoSaving || quiet.running) { autoTimer = setTimeout(tick, 2000); return; } // läuft gerade etwas: später nochmals
+    const dir = await getSetting('syncDir', null);
+    if (!dir || !(await getSetting('storage', '')) || !(await getSetting('userName', ''))) return;
+    let ok = false;
+    try { ok = await folderAccess(dir, false); } catch { ok = false; }
+    if (!ok) {
+      if (!autoHintShown) { autoHintShown = true; toast('Automatisches Speichern ist pausiert. Tippe einmal auf «Jetzt speichern», damit der Browser den Ordner wieder freigibt.', 6000); }
+      return;
+    }
+    await quietSync();
+  };
+  autoTimer = setTimeout(tick, 2000);
+}
+onWrite((store, obj) => {
+  if (store === 'docs' || store === 'folders' || store === 'years' || (store === 'settings' && obj && obj.key === 'tombstones')) scheduleAutoSave();
+});
 
 // iPhone/iPad: Assistent mit zwei Schritten
 async function syncViaFiles() {
@@ -2396,7 +2420,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.15.0';
+const APP_VERSION = '1.16.0';
 // Anzeigen nacheinander ausführen: Sonst kann eine ältere, noch laufende Anzeige die neuere überschreiben
 // (zum Beispiel wenn man während des Abgleichs auf eine andere Seite wechselt).
 let rendering = null, renderAgain = false, againKeep = true;

@@ -270,3 +270,7 @@ Bei den Speicherorten iCloud Drive, Google Drive und «Anderer Dienst» fragt di
 
 - **iPhone/iPad:** Eine Web-App darf keinen Ordner von selbst lesen. Die Frage führt darum direkt zu «Dateien wählen»; der gemeinsame Ordner wird jedes Mal neu geöffnet und alle Dateien werden markiert. Verschlüsselte Dateien: die App fragt das Passwort ab.
 - **Chrome am Computer:** Hat der Browser den Ordnerzugriff behalten, läuft der Abgleich im Hintergrund ohne Frage. Sonst fragt die App und gleicht mit «Jetzt abgleichen» ab.
+
+## Automatisch speichern (alle zwei Sekunden)
+
+Mit Chrome am Computer (Ordnerzugriff) schreibt die App ihre Sync-Datei zwei Sekunden nach der letzten Änderung von selbst in den gemeinsamen Ordner und liest dabei die Dateien der anderen ein. Hat der Browser den Ordnerzugriff verloren, erscheint ein Hinweis; ein Tipp auf «Jetzt speichern» gibt ihn wieder frei. Auf dem iPhone ist das nicht möglich, weil eine Web-App dort nicht selbst in die Dateien-App schreiben darf; dort bleibt es bei «Jetzt speichern».

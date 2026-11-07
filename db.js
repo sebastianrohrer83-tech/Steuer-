@@ -37,11 +37,16 @@ function run(store, mode, fn) {
   }));
 }
 
+// Änderungen melden: Die App speichert damit zwei Sekunden nach der letzten Änderung von selbst (siehe app.js)
+const listeners = new Set();
+export const onWrite = (fn) => listeners.add(fn);
+const notify = (store, obj) => { for (const f of listeners) { try { f(store, obj); } catch (e) { /* Zuhörer dürfen das Speichern nie stören */ } } };
+
 export const db = {
   get: (store, key) => run(store, 'readonly', (s) => s.get(key)),
   getAll: (store) => run(store, 'readonly', (s) => s.getAll()),
   getAllBy: (store, index, value) => run(store, 'readonly', (s) => s.index(index).getAll(value)),
-  put: (store, obj) => run(store, 'readwrite', (s) => s.put(obj)),
-  del: (store, key) => run(store, 'readwrite', (s) => s.delete(key)),
+  put: (store, obj) => run(store, 'readwrite', (s) => s.put(obj)).then((r) => { notify(store, obj); return r; }),
+  del: (store, key) => run(store, 'readwrite', (s) => s.delete(key)).then((r) => { notify(store, { key }); return r; }),
   clear: (store) => run(store, 'readwrite', (s) => s.clear()),
 };

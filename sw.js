@@ -1,4 +1,4 @@
-const CACHE = 'ordni-v28';
+const CACHE = 'ordni-v29';
 const ASSETS = ['./', './index.html', './styles.css', './ui.css', './theme.css', './icons.js', './app.js', './db.js', './pdfwriter.js', './zip.js', './scan.js', './scanner.js', './install.js', './manifest.webmanifest', './icons/icon.svg', './icons/favicon.svg', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
