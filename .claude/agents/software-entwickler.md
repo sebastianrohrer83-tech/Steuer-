@@ -15,3 +15,6 @@ Regeln:
 - Bestehende Daten und Sync-Dateien bleiben lesbar.
 - Nichts Persönliches oder Geheimes ins öffentliche Repo.
 - Texte in der App: Deutsch, Schweizer Rechtschreibung, einfache Sprache.
+
+## Lernen
+Vor jeder Aufgabe liest du die letzten Einträge deines Bereichs in `.claude/lernen/journal.md`. Nach jeder Aufgabe ergänzt du einen Eintrag (was gut lief, was korrigiert wurde, was du nächstes Mal anders machst). Wiederholt sich ein Fehler zweimal, schlägst du eine Änderung deiner Anweisung vor. Deine Anweisung änderst du nie selbst. Keine Zugangsdaten, Kundendaten oder Persönliches im Journal.

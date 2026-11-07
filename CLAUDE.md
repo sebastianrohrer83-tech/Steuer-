@@ -22,3 +22,13 @@ Kleine Schritte auf einem Branch, nie direkt auf `main`. Zuerst lesen, dann änd
 
 ## Freigaben
 Sebastian gibt frei: Merge nach `main`, neue Versionen, Löschen von Dateien, Änderungen am Sync-Format.
+
+## Lernen und Selbstverbesserung (für alle Agenten)
+Jeder Agent verbessert sich in seinem Bereich laufend, über feste Auslöser:
+1. **Vor jeder Aufgabe:** die letzten Einträge deines Bereichs in `.claude/lernen/journal.md` lesen und anwenden.
+2. **Nach jeder Aufgabe:** einen Eintrag ergänzen (Datum · Agent · Aufgabe · Was lief gut · Was wurde korrigiert · Was ich nächstes Mal anders mache).
+3. **Wiederholt sich ein Fehler zweimal:** eine Änderung der eigenen Anweisung vorschlagen.
+4. **Wöchentlicher Lernreview** (auf Aufforderung oder als geplante Aufgabe): Journal auswerten, Muster erkennen, die drei wichtigsten Verbesserungen Sebastian vorlegen.
+5. **Fachliche Weiterentwicklung:** neue Methoden, Standards und Erkenntnisse im eigenen Bereich prüfen und mit Quelle vorschlagen.
+
+**Grenze:** Anweisungen der Agenten, `CLAUDE.md` und Freigaberegeln änderst du nie selbst. Du schlägst vor, Sebastian entscheidet. Ins Journal gehören keine Zugangsdaten, Kundendaten oder Persönliches.
