@@ -939,6 +939,22 @@ function scheduleAutoSave() {
   };
   autoTimer = setTimeout(tick, 2000);
 }
+// Ordnerzugriff erneuern: Chrome vergisst die Erlaubnis nach einem Neustart oft. Beim ersten Tipp nach dem Start fragt die App
+// von selbst nochmals (dafür braucht der Browser einen Tipp). Im Chrome-Fenster «Bei jedem Besuch zulassen» wählen.
+let regrantDone = false;
+async function regrantOnFirstTap() {
+  if (regrantDone || !canWriteFolder()) return;
+  regrantDone = true;
+  try {
+    const dir = await getSetting('syncDir', null);
+    if (!dir || !(await getSetting('storage', ''))) return;
+    const opt = { mode: 'readwrite' };
+    if ((await dir.queryPermission(opt)) === 'granted') return;
+    if ((await dir.requestPermission(opt)) === 'granted') { toast('Ordnerzugriff erneuert. Automatisches Speichern läuft.', 3500); quietSync(); }
+  } catch (e) { console.warn('Ordnerzugriff erneuern:', e); }
+}
+if (canWriteFolder()) document.addEventListener('pointerup', regrantOnFirstTap, { once: true, passive: true });
+
 onWrite((store, obj) => {
   if (store === 'docs' || store === 'folders' || store === 'years' || (store === 'settings' && obj && obj.key === 'tombstones')) scheduleAutoSave();
 });
@@ -1810,7 +1826,8 @@ async function renderSettings() {
       </div>
       ${storage === 'gdrive' ? `<div class="row"><a class="btn" href="${esc(driveLink || DRIVE_HOME)}" target="_blank" rel="noopener">📁 Google Drive öffnen</a><button class="btn" data-action="driveLink">${driveLink ? 'Ordner-Link ändern' : 'Link zum Ordner speichern'}</button></div>
       <p class="muted small">${driveLink ? 'Der Knopf öffnet direkt euren gemeinsamen Ordner. Der Link bleibt auf diesem Gerät gespeichert.' : 'Tipp: Öffne in Google Drive den Ordner «Steuer», tippe auf Teilen und «Link kopieren». Füge ihn hier ein, dann öffnet der Knopf direkt diesen Ordner.'}</p>` : ''}
-      ${canWriteFolder() && storage ? `<p class="muted">Ordner für «Jetzt speichern»: ${dirName ? `<strong>${esc(dirName)}</strong>` : 'noch nicht gewählt'} <button class="linkbtn inline" data-action="pickDir">${dirName ? 'ändern' : 'jetzt wählen'}</button></p>` : ''}
+      ${canWriteFolder() && storage ? `<p class="muted">Ordner für «Jetzt speichern»: ${dirName ? `<strong>${esc(dirName)}</strong>` : 'noch nicht gewählt'} <button class="linkbtn inline" data-action="pickDir">${dirName ? 'ändern' : 'jetzt wählen'}</button></p>
+      ${canWriteFolder() && storage ? '<p class="muted small">Wähle im Chrome-Fenster «Bei jedem Besuch zulassen» und installiere Ordni über das Chrome-Menü («Ordni installieren»). Dann fragt Chrome meist nicht mehr nach. Nach einem Neustart genügt ein Tipp in der App, um den Zugriff zu erneuern.</p>' : ''}` : ''}
       ${storage && storage !== 'local' ? `<label class="check"><input type="checkbox" id="mergeAsk" ${mergeAsk ? 'checked' : ''}> Beim Start fragen, ob die Dateien der Familie zusammengeführt werden sollen</label>` : ''}
       <p class="muted">${sync ? `Letzter Abgleich: ${new Date(sync.last).toLocaleString('de-CH')}${sync.n ? ` · ${sync.n} Änderung(en) seither` : ''}` : 'Noch kein Abgleich durchgeführt.'} Die Datei ist zugleich deine Sicherung.</p>
 
@@ -2420,7 +2437,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.16.0';
+const APP_VERSION = '1.16.1';
 // Anzeigen nacheinander ausführen: Sonst kann eine ältere, noch laufende Anzeige die neuere überschreiben
 // (zum Beispiel wenn man während des Abgleichs auf eine andere Seite wechselt).
 let rendering = null, renderAgain = false, againKeep = true;
