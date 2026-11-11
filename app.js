@@ -103,8 +103,8 @@ function storageGuideHtml(kind) {
     return `<p><strong>So richtet ihr den gemeinsamen Ordner ein:</strong></p>
       <ol class="steps">
         <li><strong>Einmalig, eine Person:</strong> In der Dateien-App in <em>iCloud Drive</em> einen Ordner «Steuer» anlegen, gedrückt halten, «Teilen», «Zusammenarbeiten» und die Familie einladen (Bearbeiten erlauben).</li>
-        <li><strong>Jede Person:</strong> Auf der Startseite auf <em>Jetzt speichern</em> tippen. Auf dem iPhone «In Dateien sichern» wählen, den Ordner «Steuer» öffnen (nicht nur die Ansicht «Geteilt von mir»: dort bleibt «Sichern» grau) und tippe auf «Sichern». Auf Android oder am Computer wählst du den Ordner einmal, danach geht es von selbst.</li>
-        <li><strong>Zum Abgleich:</strong> Auf Android und am Computer erledigt <em>Jetzt speichern</em> das gleich mit. Auf dem iPhone unter Einstellungen <em>Dateien einlesen</em> tippen und im Ordner «Steuer» alle Dateien markieren.</li>
+        <li><strong>Jede Person:</strong> Auf der Startseite auf <em>Jetzt sichern</em> tippen. Auf dem iPhone «In Dateien sichern» wählen, den Ordner «Steuer» öffnen (nicht nur die Ansicht «Geteilt von mir»: dort bleibt «Sichern» grau) und tippe auf «Sichern». Auf Android oder am Computer wählst du den Ordner einmal, danach geht es von selbst.</li>
+        <li><strong>Zum Abgleich:</strong> Auf Android und am Computer erledigt <em>Jetzt sichern</em> das gleich mit. Auf dem iPhone unter Einstellungen <em>Dateien einlesen</em> tippen und im Ordner «Steuer» alle Dateien markieren.</li>
       </ol>`;
   }
   if (kind === 'gdrive') {
@@ -112,8 +112,8 @@ function storageGuideHtml(kind) {
       <ol class="steps">
         <li><strong>Jede Person:</strong> Google-Drive-App installieren und in der Dateien-App unter «…», «Bearbeiten» den Eintrag «Drive» einschalten.</li>
         <li><strong>Einmalig, eine Person:</strong> In Google Drive einen Ordner «Steuer» anlegen und mit den Google-Konten der Familie teilen (Bearbeiter).</li>
-        <li><strong>Jede Person:</strong> Auf der Startseite auf <em>Jetzt speichern</em> tippen. Auf dem iPhone «In Dateien sichern» wählen, den Ordner «Steuer» öffnen (nicht nur die Ansicht «Geteilt von mir»: dort bleibt «Sichern» grau) und tippe auf «Sichern». Auf Android oder am Computer wählst du den Ordner einmal, danach geht es von selbst.</li>
-        <li><strong>Zum Abgleich:</strong> Auf Android und am Computer erledigt <em>Jetzt speichern</em> das gleich mit. Auf dem iPhone unter Einstellungen <em>Dateien einlesen</em> tippen und im Ordner «Steuer» alle Dateien markieren.</li>
+        <li><strong>Jede Person:</strong> Auf der Startseite auf <em>Jetzt sichern</em> tippen. Auf dem iPhone «In Dateien sichern» wählen, den Ordner «Steuer» öffnen (nicht nur die Ansicht «Geteilt von mir»: dort bleibt «Sichern» grau) und tippe auf «Sichern». Auf Android oder am Computer wählst du den Ordner einmal, danach geht es von selbst.</li>
+        <li><strong>Zum Abgleich:</strong> Auf Android und am Computer erledigt <em>Jetzt sichern</em> das gleich mit. Auf dem iPhone unter Einstellungen <em>Dateien einlesen</em> tippen und im Ordner «Steuer» alle Dateien markieren.</li>
       </ol>`;
   }
   if (kind === 'other') {
@@ -121,14 +121,14 @@ function storageGuideHtml(kind) {
       <ol class="steps">
         <li><strong>Jede Person:</strong> Die App des Dienstes installieren (zum Beispiel OneDrive oder Dropbox) und anmelden. Auf dem iPhone in der Dateien-App unter «…», «Bearbeiten» den Dienst einschalten.</li>
         <li><strong>Einmalig, eine Person:</strong> Im Dienst einen Ordner «Steuer» anlegen und mit den Konten der Familie teilen (Bearbeiten erlauben).</li>
-        <li><strong>Jede Person:</strong> Auf der Startseite auf <em>Jetzt speichern</em> tippen. Auf dem iPhone «In Dateien sichern» wählen, den Ordner «Steuer» öffnen (nicht nur die Ansicht «Geteilt von mir»: dort bleibt «Sichern» grau) und tippe auf «Sichern». Auf Android oder am Computer wählst du den Ordner einmal, danach geht es von selbst.</li>
-        <li><strong>Zum Abgleich:</strong> Auf Android und am Computer erledigt <em>Jetzt speichern</em> das gleich mit. Auf dem iPhone unter Einstellungen <em>Dateien einlesen</em> tippen und im Ordner «Steuer» alle Dateien markieren.</li>
+        <li><strong>Jede Person:</strong> Auf der Startseite auf <em>Jetzt sichern</em> tippen. Auf dem iPhone «In Dateien sichern» wählen, den Ordner «Steuer» öffnen (nicht nur die Ansicht «Geteilt von mir»: dort bleibt «Sichern» grau) und tippe auf «Sichern». Auf Android oder am Computer wählst du den Ordner einmal, danach geht es von selbst.</li>
+        <li><strong>Zum Abgleich:</strong> Auf Android und am Computer erledigt <em>Jetzt sichern</em> das gleich mit. Auf dem iPhone unter Einstellungen <em>Dateien einlesen</em> tippen und im Ordner «Steuer» alle Dateien markieren.</li>
       </ol>
       <p class="muted small">Das klappt mit jedem Dienst, der in der Dateien-App, im Dateimanager oder als Ordner am Computer erscheint. Die App sieht nur den Ordner, nicht den Dienst.</p>`;
   }
   return `<p>Deine Belege liegen auf diesem Handy. Damit nichts verloren geht, speichere ab und zu eine <strong>Sicherung</strong>:</p>
     <ol class="steps">
-      <li>Auf der Startseite auf <em>Jetzt speichern</em> tippen.</li>
+      <li>Auf der Startseite auf <em>Jetzt sichern</em> tippen.</li>
       <li>Auf dem iPhone «In Dateien sichern» wählen, auf Android und am Computer einmal einen Ordner auswählen. Zum Beispiel in iCloud Drive oder Google Drive.</li>
     </ol>`;
 }
@@ -593,7 +593,7 @@ async function shareOrDownload(blob, name, title, { strict = false } = {}) {
       try { await navigator.share({ files: [file] }); return true; } catch (e) { if (e.name === 'AbortError') return false; failed = e; }
     }
   }
-  if (failed && strict) { const err = new Error(`Das Teilen-Menü liess sich nicht öffnen (${failed.name || 'Fehler'}). Tippe nochmals auf «Jetzt speichern».`); err.shareFailed = true; throw err; }
+  if (failed && strict) { const err = new Error(`Das Teilen-Menü liess sich nicht öffnen (${failed.name || 'Fehler'}). Tippe nochmals auf «Jetzt sichern».`); err.shareFailed = true; throw err; }
   download(blob, name);
   return true;
 }
@@ -794,7 +794,7 @@ async function saveSyncFile(share) {
 }
 
 // ---------------------------------------------------------------------------
-// «Jetzt speichern»: Abgleich mit der Familie über den gemeinsamen Ordner
+// «Jetzt sichern»: Abgleich mit der Familie über den gemeinsamen Ordner
 // - Chrome (Android/Computer): Ordner einmal wählen. Danach liest und schreibt die App dort direkt. Solange die
 //   Erlaubnis des Browsers gilt, gleicht sie sich auch von selbst ab (beim Öffnen, jede Minute, beim Verlassen).
 // - iPhone/iPad: Safari darf keinen Ordner dauerhaft beschreiben. Dort führt ein Assistent in zwei Schritten
@@ -913,7 +913,7 @@ async function saveToFolder(storage) {
   } finally { busy(false); }
 }
 
-// Hintergrund-Abgleich: nur wenn der Browser die Erlaubnis noch hat (sonst genügt ein Tipp auf «Jetzt speichern»).
+// Hintergrund-Abgleich: nur wenn der Browser die Erlaubnis noch hat (sonst genügt ein Tipp auf «Jetzt sichern»).
 function refreshIfIdle() {
   const p = (location.hash.slice(1) || '/').split('/').filter(Boolean)[0];
   const sc = document.getElementById('scanner');
@@ -946,7 +946,7 @@ function scheduleAutoSave() {
     let ok = false;
     try { ok = await folderAccess(dir, false); } catch { ok = false; }
     if (!ok) {
-      if (!autoHintShown) { autoHintShown = true; toast('Automatisches Speichern ist pausiert. Tippe einmal auf «Jetzt speichern», damit der Browser den Ordner wieder freigibt.', 6000); }
+      if (!autoHintShown) { autoHintShown = true; toast('Automatisches Speichern ist pausiert. Tippe einmal auf «Jetzt sichern», damit der Browser den Ordner wieder freigibt.', 6000); }
       return;
     }
     await quietSync();
@@ -1508,7 +1508,7 @@ async function renderHome() {
     ${warnFull ? `<section class="warncard"><strong>⚠️ Der Speicher ist fast voll.</strong>
       <p>Sichere deine Belege und schaffe Platz, bevor neue Scans nicht mehr gespeichert werden können.</p></section>` : ''}
     ${storage ? `<section class="savecard ${!sync || sync.n ? 'pending' : ''}">
-      <button class="btn ${!sync || sync.n ? 'primary' : ''} big wide" data-action="autoSave">💾 Jetzt speichern</button>
+      <button class="btn ${!sync || sync.n ? 'primary' : ''} big wide" data-action="autoSave">💾 Jetzt sichern</button>
       <p class="muted small">${sync ? `Zuletzt gespeichert: ${new Date(sync.last).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' })}${sync.n ? ` · ${sync.n} Änderung${sync.n === 1 ? '' : 'en'} noch nicht gesichert` : ' · alles gesichert ✓'}` : 'Noch nie gespeichert.'} ${canWriteFolder() ? (dirName ? `Ordner «${esc(dirName)}»${live ? ': wird automatisch abgeglichen ✓' : ': tippe auf den Knopf, um den automatischen Abgleich zu starten.'}` : 'Beim ersten Mal wählst du den Ordner aus.') : 'Eine kurze Anleitung führt dich durch den Abgleich.'}${enc ? ' 🔒 Verschlüsselt.' : ''}</p>
       ${storage === 'gdrive' ? `<a class="btn wide" style="margin-top:10px" href="${esc(driveUrl)}" target="_blank" rel="noopener">📁 Google Drive öffnen</a>` : ''}
       ${enc ? '' : '<a class="storeline" href="#/settings">🔒 Dateien verschlüsseln (empfohlen) ›</a>'}
@@ -1850,13 +1850,13 @@ async function renderSettings() {
       ${storageOptionsHtml(storage)}
       ${storage ? `<div class="guide">${storageGuideHtml(storage)}</div>` : '<p class="muted">Wähle oben deinen Speicherort.</p>'}
       <div class="row">
-        ${storage ? '<button class="btn primary" data-action="autoSave">💾 Jetzt speichern</button>' : ''}
-        <button class="btn ${storage ? '' : 'primary'}" data-action="syncSave">⇪ Meine Datei speichern</button>
+        ${storage ? '<button class="btn primary" data-action="autoSave">💾 Jetzt sichern</button>' : ''}
+        <button class="btn ${storage ? '' : 'primary'}" data-action="syncSave">⇪ Meine Datei sichern</button>
         <button class="btn" data-action="syncLoad">⤒ ${storage === 'local' || !storage ? 'Sicherung einlesen' : 'Dateien einlesen'}</button>
       </div>
       ${storage === 'gdrive' ? `<div class="row"><a class="btn" href="${esc(driveLink || DRIVE_HOME)}" target="_blank" rel="noopener">📁 Google Drive öffnen</a><button class="btn" data-action="driveLink">${driveLink ? 'Ordner-Link ändern' : 'Link zum Ordner speichern'}</button></div>
       <p class="muted small">${driveLink ? 'Der Knopf öffnet direkt euren gemeinsamen Ordner. Der Link bleibt auf diesem Gerät gespeichert.' : 'Tipp: Öffne in Google Drive den Ordner «Steuer», tippe auf Teilen und «Link kopieren». Füge ihn hier ein, dann öffnet der Knopf direkt diesen Ordner.'}</p>` : ''}
-      ${canWriteFolder() && storage ? `<p class="muted">Ordner für «Jetzt speichern»: ${dirName ? `<strong>${esc(dirName)}</strong>` : 'noch nicht gewählt'} <button class="linkbtn inline" data-action="pickDir">${dirName ? 'ändern' : 'jetzt wählen'}</button></p>
+      ${canWriteFolder() && storage ? `<p class="muted">Ordner für «Jetzt sichern»: ${dirName ? `<strong>${esc(dirName)}</strong>` : 'noch nicht gewählt'} <button class="linkbtn inline" data-action="pickDir">${dirName ? 'ändern' : 'jetzt wählen'}</button></p>
       ${canWriteFolder() && storage ? '<p class="muted small">Wähle im Chrome-Fenster «Bei jedem Besuch zulassen» und installiere Ordni über das Chrome-Menü («Ordni installieren»). Dann fragt Chrome meist nicht mehr nach. Nach einem Neustart genügt ein Tipp in der App, um den Zugriff zu erneuern.</p>' : ''}` : ''}
       ${storage && storage !== 'local' ? `<label class="check"><input type="checkbox" id="mergeAsk" ${mergeAsk ? 'checked' : ''}> Beim Start fragen, ob die Dateien der Familie zusammengeführt werden sollen</label>` : ''}
       <p class="muted">${sync ? `Letzter Abgleich: ${new Date(sync.last).toLocaleString('de-CH')}${sync.n ? ` · ${sync.n} Änderung(en) seither` : ''}` : 'Noch kein Abgleich durchgeführt.'} Die Datei ist zugleich deine Sicherung.</p>
@@ -2146,7 +2146,7 @@ async function renderPrivacy(params) {
 
       <h3>Abgleich mit der Familie und Teilen</h3>
       <ul>
-        <li>«Jetzt speichern» schreibt eine Datei mit deinen Belegen in den Ordner, den du gewählt hast (zum Beispiel in iCloud Drive, Google Drive oder OneDrive). Der Dienst und alle, die Zugriff auf den Ordner haben, können die Datei sehen. Für diese Dienste gelten deren eigene Datenschutzbestimmungen.</li>
+        <li>«Jetzt sichern» schreibt eine Datei mit deinen Belegen in den Ordner, den du gewählt hast (zum Beispiel in iCloud Drive, Google Drive oder OneDrive). Der Dienst und alle, die Zugriff auf den Ordner haben, können die Datei sehen. Für diese Dienste gelten deren eigene Datenschutzbestimmungen.</li>
         <li>Ohne Passwort ist die Datei lesbar. Mit Passwort ist sie verschlüsselt (AES-256). Das Passwort liegt nur auf deinem Gerät und niemand kann es für dich wiederherstellen.</li>
         <li>Der Dateiname enthält deinen Namen und ein Gerätekürzel.</li>
         <li>Wenn du ein PDF teilst, entscheidest du im Teilen-Menü deines Geräts, wohin es geht.</li>
@@ -2212,7 +2212,7 @@ async function renderHelp() {
         <p>Auf deinem Handy, in dieser App. Sie werden nicht ins Internet gesendet. Zusätzlich kannst du eine Sicherung oder einen gemeinsamen Ordner mit der Familie in iCloud Drive oder Google Drive nutzen. Das stellst du unter Einstellungen bei «Speicherort und Familie» ein.</p>
       </details>
       <details><summary>Wie arbeiten wir zu zweit oder als Familie?</summary>
-        <p>Alle nutzen einen gemeinsamen Ordner in iCloud Drive oder Google Drive. Jedes Gerät speichert seine eigene Datei dort hinein und liest die Dateien der anderen ein. Das erledigt der Knopf «Jetzt speichern». Die genauen Schritte stehen unter Einstellungen bei «Speicherort und Familie».</p>
+        <p>Alle nutzen einen gemeinsamen Ordner in iCloud Drive oder Google Drive. Jedes Gerät speichert seine eigene Datei dort hinein und liest die Dateien der anderen ein. Das erledigt der Knopf «Jetzt sichern». Die genauen Schritte stehen unter Einstellungen bei «Speicherort und Familie».</p>
       </details>
       <details><summary>Ich habe einen Beleg aus Versehen gelöscht. Was nun?</summary>
         <p>Gelöschte Belege liegen ${TRASH_DAYS} Tage im Papierkorb. Öffne Einstellungen, dann «Papierkorb», und tippe auf <strong>Zurückholen</strong>. Danach ist der Beleg endgültig weg, auch bei der Familie.</p>
@@ -2411,6 +2411,35 @@ async function renderChecklist() {
   $('#headerRight').onclick = handler;
 }
 
+// Zahlen fürs Portal als PDF: Die Seiten werden als Bilder gezeichnet (A4, 150 dpi) und in ein PDF gepackt.
+// «Drucken» (window.print) geht in der Home-Bildschirm-App auf dem iPhone nicht, ein PDF zum Teilen schon.
+async function summaryPdf(year, rows) {
+  const W = 1240, H = 1754, M = 110;
+  const pages = [];
+  let c, g, y;
+  const font = (px, bold) => `${bold ? '700 ' : '400 '}${px}px system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif`;
+  const fit = (txt, px, bold, max) => { g.font = font(px, bold); if (g.measureText(txt).width <= max) return txt; let t = txt; while (t.length > 1 && g.measureText(t + '…').width > max) t = t.slice(0, -1); return t + '…'; };
+  const newPage = async () => {
+    if (c) pages.push(await canvasPage(c));
+    c = document.createElement('canvas'); c.width = W; c.height = H; g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.fillStyle = '#0f1f3d'; g.textBaseline = 'alphabetic';
+    y = M;
+    g.font = font(46, true); g.fillText(`Steuerjahr ${year}: erfasste Beträge`, M, y + 40); y += 70;
+    g.font = font(24, false); g.fillStyle = '#5a6a85'; g.fillText(`Erstellt mit Ordni am ${new Date().toLocaleDateString('de-CH')}. Die Beträge hast du selbst bei den Belegen eingetragen.`, M, y); y += 56;
+  };
+  const need = async (h) => { if (y + h > H - M - 40) await newPage(); };
+  await newPage();
+  for (const r of rows) {
+    if (r.t === 'person') { await need(120); y += 14; g.fillStyle = '#2b50e8'; g.font = font(38, true); g.fillText(r.a, M, y + 30); y += 62; }
+    else if (r.t === 'folder') { await need(110); y += 12; g.fillStyle = '#0f1f3d'; g.font = font(32, true); g.fillText(fit(r.a, 32, true, W - 2 * M), M, y + 26); y += 40; g.fillStyle = '#d5ddeb'; g.fillRect(M, y, W - 2 * M, 2); y += 12; }
+    else if (r.t === 'row') { await need(52); g.fillStyle = '#0f1f3d'; g.font = font(28, false); const bw = (() => { g.font = font(28, false); return g.measureText(r.b).width; })(); g.fillText(fit(r.a, 28, false, W - 2 * M - bw - 40), M, y + 34); g.textAlign = 'right'; g.fillText(r.b, W - M, y + 34); g.textAlign = 'left'; y += 50; }
+    else if (r.t === 'total') { await need(64); g.fillStyle = '#d5ddeb'; g.fillRect(M, y, W - 2 * M, 2); g.fillStyle = '#0f1f3d'; g.font = font(28, true); g.fillText('Total', M, y + 40); g.textAlign = 'right'; g.fillText(r.b, W - M, y + 40); g.textAlign = 'left'; y += 70; }
+  }
+  pages.push(await canvasPage(c));
+  return makePdf(pages, { title: `Zahlen fürs Portal ${year}` });
+}
+async function canvasPage(cv) { return { blob: await toJpeg(cv, 0.92), w: cv.width, h: cv.height }; }
+
 async function renderSummary() {
   const year = await currentYear();
   const folders = await foldersOf(year);
@@ -2424,8 +2453,10 @@ async function renderSummary() {
   const split = [...seen].filter(Boolean).length > 1 || (seen.has('') && [...seen].some(Boolean) && persons.length > 1);
   const order = split ? [...persons.filter((p) => seen.has(p)), ...[...seen].filter((p) => p && !persons.includes(p)), ...(seen.has('') ? [''] : [])] : [null];
   const text = [`Steuerjahr ${year}: erfasste Beträge`, ''];
+  const pdfRows = []; // für das PDF: {t: 'person'|'folder'|'row'|'total', a: Text, b: Betrag}
   const sections = order.map((pn) => {
     if (pn !== null) text.push(`== ${pn || 'Nicht zugeordnet'} ==`, '');
+    if (pn !== null) pdfRows.push({ t: 'person', a: pn || 'Nicht zugeordnet' });
     const sub = pn === null ? groups : groups.map((g) => ({ f: g.f, list: g.list.filter((d) => (d.person || '') === pn) })).filter((g) => g.list.length);
     return (pn === null ? '' : `<h2 class="sectitle">${esc(pn || 'Nicht zugeordnet')}</h2>`) + sumBody(sub, text);
   });
@@ -2434,12 +2465,15 @@ async function renderSummary() {
     const amounts = g.list.filter((d) => d.amount != null);
     const sum = amounts.reduce((t, d) => t + d.amount, 0);
     text.push(g.f.name);
+    pdfRows.push({ t: 'folder', a: g.f.name });
     const rows = g.list.map((d) => {
       const it = d.item ? CHECKLIST.find((c) => c.key === d.item) : null;
       text.push(`  ${d.title}: ${d.amount != null ? 'CHF ' + fmtChf(d.amount) : 'kein Betrag'}`);
+      pdfRows.push({ t: 'row', a: d.title, b: d.amount != null ? 'CHF ' + fmtChf(d.amount) : '–' });
       return `<tr><td>${esc(d.title)}${it && it.amount ? `<small>Eintragen: ${esc(it.amount)}</small>` : ''}</td><td class="num">${d.amount != null ? 'CHF ' + fmtChf(d.amount) : '<span class="muted">–</span>'}</td></tr>`;
     }).join('');
     if (amounts.length > 1) text.push(`  Total: CHF ${fmtChf(sum)}`);
+    if (amounts.length > 1) pdfRows.push({ t: 'total', a: 'Total', b: 'CHF ' + fmtChf(sum) });
     text.push('');
     return `<h3 class="upfolder">${esc(g.f.icon || '📁')} ${esc(g.f.name)}</h3>
       <table class="sumtab">${rows}${amounts.length > 1 ? `<tr class="tot"><td>Total</td><td class="num">CHF ${fmtChf(sum)}</td></tr>` : ''}</table>`;
@@ -2452,13 +2486,23 @@ async function renderSummary() {
     </section>
     ${groups.length ? `<h2 class="sectitle printonly">Steuerjahr ${year}</h2>${body}
     <div class="upbtns noprint">
-      <button class="btn primary" data-action="print">🖨️ Drucken oder als PDF sichern</button>
+      <button class="btn primary" data-action="pdf" id="sumPdf" disabled>📄 PDF wird vorbereitet …</button>
       <button class="btn" data-action="copy">📋 Als Text kopieren</button>
+      ${navigator.standalone ? '' : '<button class="btn" data-action="print">🖨️ Drucken</button>'}
     </div>` : '<div class="empty"><p>Noch keine Belege.<br>Lege Belege ab und trage bei jedem den Betrag ein.</p><a class="btn" href="#/">Zur Startseite</a></div>'}`;
+  let pdfBlob = null;
+  if (groups.length) summaryPdf(year, pdfRows).then((b) => {
+    pdfBlob = b;
+    const bt = $('#sumPdf'); if (bt) { bt.disabled = false; bt.textContent = '📄 Als PDF sichern oder teilen'; }
+  }).catch((err) => { const bt = $('#sumPdf'); if (bt) bt.textContent = 'PDF nicht möglich: ' + err.message; });
   view().onclick = async (e) => {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
-    if (btn.dataset.action === 'print') window.print();
+    if (btn.dataset.action === 'pdf') {
+      // Das PDF liegt schon bereit: Das Teilen-Menü muss direkt beim Tippen geöffnet werden (Safari)
+      if (!pdfBlob) return;
+      try { await shareOrDownload(pdfBlob, `Zahlen_fuers_Portal_${year}.pdf`, `Zahlen fürs Portal ${year}`, { strict: true }); } catch (err) { toast(err.message, 6000); }
+    } else if (btn.dataset.action === 'print') window.print();
     else if (btn.dataset.action === 'copy') {
       try { await navigator.clipboard.writeText(text.join('\n')); toast('Kopiert.'); } catch { toast('Kopieren geht hier nicht. Nutze «Drucken».', 4000); }
     }
@@ -2468,7 +2512,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.17.1';
+const APP_VERSION = '1.17.2';
 // Anzeigen nacheinander ausführen: Sonst kann eine ältere, noch laufende Anzeige die neuere überschreiben
 // (zum Beispiel wenn man während des Abgleichs auf eine andere Seite wechselt).
 let rendering = null, renderAgain = false, againKeep = true;

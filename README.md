@@ -132,7 +132,7 @@ Die App hat keinen Server. Alle im Haushalt nutzen einen gemeinsamen Ordner in i
 1. **Einmalig:** In der Dateien-App einen Ordner «Steuer» in iCloud Drive anlegen, gedrückt halten, «Teilen» →
    «Zusammenarbeiten» → Personen aus dem Haushalt einladen.
 2. In der App unter **Einstellungen** den eigenen **Namen** eintragen.
-3. **Jetzt speichern** (Knopf auf der Startseite, sobald der Speicherort festgelegt ist):
+3. **Jetzt sichern** (Knopf auf der Startseite, sobald der Speicherort festgelegt ist):
    - *Chrome auf Android oder am Computer:* Beim ersten Mal den Ordner «Steuer» wählen. Danach liest die App dort die
      Dateien der anderen Geräte ein und schreibt ihre eigene Datei. Solange der Browser die Erlaubnis noch hat, geschieht
      das auch von selbst: beim Öffnen, jede Minute und beim Verlassen der App. Nach einem Neustart des Browsers genügt
@@ -273,7 +273,7 @@ Bei den Speicherorten iCloud Drive, Google Drive und «Anderer Dienst» fragt di
 
 ## Automatisch speichern (alle zwei Sekunden)
 
-Mit Chrome am Computer (Ordnerzugriff) schreibt die App ihre Sync-Datei zwei Sekunden nach der letzten Änderung von selbst in den gemeinsamen Ordner und liest dabei die Dateien der anderen ein. Hat der Browser den Ordnerzugriff verloren, erscheint ein Hinweis; ein Tipp auf «Jetzt speichern» gibt ihn wieder frei. Auf dem iPhone ist das nicht möglich, weil eine Web-App dort nicht selbst in die Dateien-App schreiben darf; dort bleibt es bei «Jetzt speichern».
+Mit Chrome am Computer (Ordnerzugriff) schreibt die App ihre Sync-Datei zwei Sekunden nach der letzten Änderung von selbst in den gemeinsamen Ordner und liest dabei die Dateien der anderen ein. Hat der Browser den Ordnerzugriff verloren, erscheint ein Hinweis; ein Tipp auf «Jetzt sichern» gibt ihn wieder frei. Auf dem iPhone ist das nicht möglich, weil eine Web-App dort nicht selbst in die Dateien-App schreiben darf; dort bleibt es bei «Jetzt sichern».
 
 ## Seiten nachbearbeiten
 
@@ -281,4 +281,12 @@ Bei jeder gescannten Seite steht «Bearbeiten». Es öffnet das Originalfoto mit
 
 ## Weniger Tipps beim Speichern (iPhone)
 
-Hat man die Dateien der anderen in den letzten 20 Minuten geholt (zum Beispiel bei der Frage beim Start), entfällt Schritt 1 in «Jetzt speichern»: Der Assistent zeigt nur noch «Meine Datei sichern», mit «Nochmals holen» als Ausweg. iOS merkt sich den zuletzt gewählten Ordner im Teilen-Menü und in der Dateiauswahl; ab dem zweiten Mal bleibt es bei etwa vier Tipps pro Richtung. Mehr geht mit einer Web-App auf dem iPhone nicht, weil sie nicht selbst in die Dateien-App schreiben darf.
+Hat man die Dateien der anderen in den letzten 20 Minuten geholt (zum Beispiel bei der Frage beim Start), entfällt Schritt 1 in «Jetzt sichern»: Der Assistent zeigt nur noch «Meine Datei sichern», mit «Nochmals holen» als Ausweg. iOS merkt sich den zuletzt gewählten Ordner im Teilen-Menü und in der Dateiauswahl; ab dem zweiten Mal bleibt es bei etwa vier Tipps pro Richtung. Mehr geht mit einer Web-App auf dem iPhone nicht, weil sie nicht selbst in die Dateien-App schreiben darf.
+
+## Zahlen fürs Portal als PDF
+
+«Drucken» (window.print) funktioniert in der Home-Bildschirm-App auf dem iPhone nicht. Darum erzeugt die App aus den Zahlen ein PDF (A4, Seiten als Bilder gezeichnet) und öffnet das Teilen-Menü («In Dateien sichern»). Das PDF wird schon beim Öffnen der Seite vorbereitet, damit das Teilen-Menü direkt beim Tippen aufgeht; «Drucken» erscheint nur noch im Browser.
+
+## Wortwahl
+
+Der Knopf auf der Startseite heisst «Jetzt sichern», im Assistenten «Meine Datei sichern» (früher «Jetzt speichern» und «Meine Datei speichern»).
