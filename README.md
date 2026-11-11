@@ -274,3 +274,7 @@ Bei den Speicherorten iCloud Drive, Google Drive und «Anderer Dienst» fragt di
 ## Automatisch speichern (alle zwei Sekunden)
 
 Mit Chrome am Computer (Ordnerzugriff) schreibt die App ihre Sync-Datei zwei Sekunden nach der letzten Änderung von selbst in den gemeinsamen Ordner und liest dabei die Dateien der anderen ein. Hat der Browser den Ordnerzugriff verloren, erscheint ein Hinweis; ein Tipp auf «Jetzt speichern» gibt ihn wieder frei. Auf dem iPhone ist das nicht möglich, weil eine Web-App dort nicht selbst in die Dateien-App schreiben darf; dort bleibt es bei «Jetzt speichern».
+
+## Seiten nachbearbeiten
+
+Bei jeder gescannten Seite steht «Bearbeiten». Es öffnet das Originalfoto mit den Ecken und dem Filter (Dokument, Farbe, Original) von damals: Ecken neu setzen, Filter wechseln, übernehmen. Seiten, die gedreht wurden, drehen das Originalfoto mit. Das Originalfoto bleibt nur auf dem Gerät (nicht in der Sync-Datei, nicht im PDF) und braucht etwa doppelt so viel Platz wie die Seite; unter Einstellungen lässt es sich abschalten. Ältere Seiten ohne Originalfoto lassen sich zuschneiden und mit einem anderen Filter neu aufbereiten.

@@ -1,7 +1,7 @@
 import { db, onWrite } from './db.js';
 import { makePdf } from './pdfwriter.js';
 import { ZipWriter, readZip } from './zip.js';
-import { scanPages, reviewFiles } from './scanner.js';
+import { scanPages, reviewFiles, editPage } from './scanner.js';
 
 // ---------------------------------------------------------------------------
 // Standardordner: orientiert an den Beilagen der Steuererklärung AR (natürliche Personen)
@@ -539,15 +539,29 @@ function loadImage(file) {
 }
 const toJpeg = (canvas, q = 0.82) => new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('JPEG fehlgeschlagen'))), 'image/jpeg', q));
 
-async function rotatePage(page) {
-  const img = await loadImage(page.blob);
+async function rotateBlob(blob, q) {
+  const img = await loadImage(blob);
   const c = document.createElement('canvas');
   c.width = img.naturalHeight; c.height = img.naturalWidth;
   const ctx = c.getContext('2d');
   ctx.translate(c.width / 2, c.height / 2);
   ctx.rotate(Math.PI / 2);
   ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
-  return { blob: await toJpeg(c, 0.9), w: c.width, h: c.height };
+  return { blob: await toJpeg(c, q), w: c.width, h: c.height };
+}
+// Ecken [oben links, oben rechts, unten rechts, unten links] nach einer Drehung im Uhrzeigersinn: Punkt (x, y) wird zu (Höhe − y, x),
+// und die Reihenfolge rutscht um eins weiter (die frühere untere linke Ecke liegt nun oben links).
+function rotateCorners(corners, oldH) {
+  if (!corners || corners.length !== 4) return [];
+  const r = corners.map((q) => ({ x: oldH - q.y, y: q.x }));
+  return [r[3], r[0], r[1], r[2]];
+}
+async function rotatePage(page) {
+  const out = await rotateBlob(page.blob, 0.9);
+  if (!page.src) return out;
+  // Das Originalfoto dreht mit, samt Ecken (Drehung im Uhrzeigersinn: (x, y) wird zu (Höhe − y, x))
+  const s = await rotateBlob(page.src, 0.85);
+  return { ...out, src: s.blob, sw: s.w, sh: s.h, corners: rotateCorners(page.corners, page.sh), mode: page.mode };
 }
 
 async function docToPdf(doc) {
@@ -1636,16 +1650,18 @@ async function renderDoc(docId, params) {
     </section>
     ${isImg ? `<section class="pages">${doc.pages.map((p, i) => `
       <figure class="page">
-        <img src="${blobUrl(p.blob)}" alt="Seite ${i + 1}" data-action="viewPage" data-i="${i}">
         <figcaption>
           <span>Seite ${i + 1}</span>
           <span class="pagebtns">
+            <button class="iconbtn wide" data-action="editPage" data-i="${i}" title="Zuschneiden und Filter ändern">✎ Bearbeiten</button>
             <button class="iconbtn" data-action="rotate" data-i="${i}" title="Drehen">⟳</button>
             <button class="iconbtn" data-action="up" data-i="${i}" title="Nach vorne" ${i === 0 ? 'disabled' : ''}>↑</button>
             <button class="iconbtn" data-action="down" data-i="${i}" title="Nach hinten" ${i === doc.pages.length - 1 ? 'disabled' : ''}>↓</button>
             <button class="iconbtn danger" data-action="delPage" data-i="${i}" title="Seite löschen">✕</button>
           </span>
         </figcaption>
+      
+        <img src="${blobUrl(p.blob)}" alt="Seite ${i + 1}" data-action="viewPage" data-i="${i}">
       </figure>`).join('')}
       <div class="addpage">
         <button class="btn" data-action="addPageCam">📷 Weitere Seite scannen</button>
@@ -1712,6 +1728,9 @@ async function renderDoc(docId, params) {
       window.open(blobUrl(doc.file), '_blank');
     } else if (a === 'viewPage') {
       window.open(blobUrl(doc.pages[i].blob), '_blank');
+    } else if (a === 'editPage') {
+      const np = await editPage(doc.pages[i]);
+      if (np) { doc.pages[i] = np; doc.updatedAt = Date.now(); await db.put('docs', doc); toast('Seite aktualisiert.'); render(true); }
     } else if (a === 'rotate') {
       busy(true, 'Seite wird gedreht …');
       try { doc.pages[i] = await rotatePage(doc.pages[i]); doc.updatedAt = Date.now(); await db.put('docs', doc); render(); } finally { busy(false); }
@@ -1799,6 +1818,7 @@ async function renderSettings() {
         </select>
       </label>
       <label class="check"><input type="checkbox" id="autoCap" ${autoCap ? 'checked' : ''}> Foto automatisch auslösen, sobald das Blatt erkannt ist</label>
+      <label class="check"><input type="checkbox" id="keepOrig" ${(() => { try { return localStorage.getItem('ordni.keepOrig') !== '0'; } catch { return true; } })() ? 'checked' : ''}> Originalfoto für späteres Zuschneiden behalten (braucht mehr Speicher)</label>
 
       <h3>Belege hochladen</h3>
       <p>Hier überträgst du deine Belege in die Online-Steuererklärung. Die App führt dich Schritt für Schritt.</p>
@@ -1852,6 +1872,7 @@ async function renderSettings() {
 
   $('#scanMode').onchange = (e) => setSetting('scanMode', e.target.value);
   $('#autoCap').onchange = (e) => setSetting('autoCapture', e.target.checked);
+  $('#keepOrig').onchange = (e) => { try { localStorage.setItem('ordni.keepOrig', e.target.checked ? '1' : '0'); } catch { /* ohne Speicher: bleibt an */ } };
   $('#userName').onchange = (e) => setSetting('userName', e.target.value.trim());
   const maBox = $('#mergeAsk'); if (maBox) maBox.onchange = (e) => setSetting('mergeAsk', e.target.checked);
   view().onclick = async (e) => {
@@ -2437,7 +2458,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.16.1';
+const APP_VERSION = '1.17.0';
 // Anzeigen nacheinander ausführen: Sonst kann eine ältere, noch laufende Anzeige die neuere überschreiben
 // (zum Beispiel wenn man während des Abgleichs auf eine andere Seite wechselt).
 let rendering = null, renderAgain = false, againKeep = true;

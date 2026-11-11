@@ -34,6 +34,20 @@ function closeRoot() {
 
 const toBlob = (canvas, q) => new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('JPEG fehlgeschlagen'))), 'image/jpeg', q));
 
+// Das Originalfoto (mit Ecken und Filter) bleibt beim Beleg, damit die Seite später nochmals zugeschnitten oder
+// mit einem anderen Filter bearbeitet werden kann. Es wird nicht in die Sync-Datei übernommen (nur auf diesem Gerät).
+const SRC_SIDE = 2400;
+const keepOriginals = () => { try { return localStorage.getItem('ordni.keepOrig') !== '0'; } catch { return true; } };
+async function attachSource(page, canvas, corners, mode) {
+  if (!keepOriginals()) return page;
+  const s = Math.min(1, SRC_SIDE / Math.max(canvas.width, canvas.height));
+  let c = canvas;
+  if (s < 1) { c = document.createElement('canvas'); c.width = Math.round(canvas.width * s); c.height = Math.round(canvas.height * s); c.getContext('2d').drawImage(canvas, 0, 0, c.width, c.height); }
+  page.src = await toBlob(c, 0.8); page.sw = c.width; page.sh = c.height;
+  page.corners = corners.map((p) => ({ x: p.x * s, y: p.y * s })); page.mode = mode;
+  return page;
+}
+
 async function canvasToPage(canvas, mode) {
   return { blob: await toBlob(canvas, mode === 'doc' ? 0.8 : 0.85), w: canvas.width, h: canvas.height };
 }
@@ -193,6 +207,7 @@ function runReview({ canvas, corners, mode, title, retakeLabel }) {
         try {
           const out = warpToCanvas(canvas, cur, { mode: curMode, maxSide: MAX_SIDE });
           const page = await canvasToPage(out, curMode);
+          await attachSource(page, canvas, cur, curMode);
           cleanup();
           resolve({ action: 'ok', page });
         } catch (err) {
@@ -225,6 +240,25 @@ export async function reviewFiles(files, { mode = 'doc' } = {}) {
     }
   } finally { closeRoot(); }
   return pages;
+}
+
+// Gespeicherte Seite nochmals bearbeiten: Ecken neu setzen, Filter wechseln. Ergebnis: neue Seite oder null (abgebrochen).
+export async function editPage(page) {
+  openRoot();
+  try {
+    let canvas, corners, mode, title;
+    if (page.src) {
+      canvas = await fileToCanvas(page.src, 3200);
+      const k = canvas.width / page.sw;
+      corners = (page.corners && page.corners.length === 4 ? page.corners : fullCorners(page.sw, page.sh)).map((p) => ({ x: p.x * k, y: p.y * k }));
+      mode = page.mode || 'doc'; title = 'Seite bearbeiten';
+    } else { // ältere Seite ohne Originalfoto: das fertige Bild nochmals zuschneiden
+      canvas = await fileToCanvas(page.blob, 3200);
+      corners = fullCorners(canvas.width, canvas.height); mode = 'orig'; title = 'Seite zuschneiden';
+    }
+    const res = await runReview({ canvas, corners, mode, title, retakeLabel: null });
+    return res.action === 'ok' ? res.page : null;
+  } finally { closeRoot(); }
 }
 
 // Live-Scanner. Ergebnis: Seitenliste, null (abgebrochen) oder 'unavailable' (keine Kamera).
