@@ -278,3 +278,7 @@ Mit Chrome am Computer (Ordnerzugriff) schreibt die App ihre Sync-Datei zwei Sek
 ## Seiten nachbearbeiten
 
 Bei jeder gescannten Seite steht «Bearbeiten». Es öffnet das Originalfoto mit den Ecken und dem Filter (Dokument, Farbe, Original) von damals: Ecken neu setzen, Filter wechseln, übernehmen. Seiten, die gedreht wurden, drehen das Originalfoto mit. Das Originalfoto bleibt nur auf dem Gerät (nicht in der Sync-Datei, nicht im PDF) und braucht etwa doppelt so viel Platz wie die Seite; unter Einstellungen lässt es sich abschalten. Ältere Seiten ohne Originalfoto lassen sich zuschneiden und mit einem anderen Filter neu aufbereiten.
+
+## Weniger Tipps beim Speichern (iPhone)
+
+Hat man die Dateien der anderen in den letzten 20 Minuten geholt (zum Beispiel bei der Frage beim Start), entfällt Schritt 1 in «Jetzt speichern»: Der Assistent zeigt nur noch «Meine Datei sichern», mit «Nochmals holen» als Ausweg. iOS merkt sich den zuletzt gewählten Ordner im Teilen-Menü und in der Dateiauswahl; ab dem zweiten Mal bleibt es bei etwa vier Tipps pro Richtung. Mehr geht mit einer Web-App auf dem iPhone nicht, weil sie nicht selbst in die Dateien-App schreiben darf.

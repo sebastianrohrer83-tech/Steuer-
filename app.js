@@ -978,20 +978,26 @@ async function syncViaFiles() {
   await ensureUserName();
   await offerEncryption();
   let fname = await ownSyncName();
+  const readAgo = Date.now() - (await getSetting('lastRead', 0));
+  const recent = readAgo < 20 * 60 * 1000; // vor kurzem geholt (zum Beispiel beim Start): Schritt 1 entfällt
+  const recentMin = Math.max(1, Math.round(readAgo / 60000));
   let t0 = 0, blob = null, blobP = null, locked = [];
   const build = () => { t0 = Date.now(); blobP = buildSyncFile(); return blobP; };
   build();
   let shareP = null;
   const res = dialog(`
     <h2>Abgleich mit der Familie</h2>
-    <p><strong>Schritt 1:</strong> Hole die Änderungen der anderen. Tippe auf «Dateien wählen», öffne den gemeinsamen Ordner und markiere <em>alle</em> Dateien. Überspringe den Schritt, wenn du allein arbeitest.</p>
-    <label class="btn filebtn pickover">📂 Dateien wählen<input type="file" id="wizFiles" multiple></label>
-    <p id="wizState" class="muted small">Noch nichts gewählt.</p>
-    <div id="wizPass" hidden>
-      <label>Passwort der Familie<input type="password" id="wizPassIn" autocomplete="current-password"></label>
-      <button type="button" id="wizPassBtn" class="btn small">🔓 Entsperren</button>
+    ${recent ? `<p id="wizDone" class="muted">✓ Die Dateien der anderen hast du vor ${recentMin} Min. geholt. <button type="button" class="linkbtn inline" id="wizAgain">Nochmals holen</button></p>` : ''}
+    <div id="wizStep1" ${recent ? 'hidden' : ''}>
+      <p><strong>Schritt 1:</strong> Hole die Änderungen der anderen. Tippe auf «Dateien wählen», öffne den gemeinsamen Ordner und markiere <em>alle</em> Dateien. Überspringe den Schritt, wenn du allein arbeitest.</p>
+      <label class="btn filebtn pickover">📂 Dateien wählen<input type="file" id="wizFiles" multiple></label>
+      <p id="wizState" class="muted small">Noch nichts gewählt.</p>
+      <div id="wizPass" hidden>
+        <label>Passwort der Familie<input type="password" id="wizPassIn" autocomplete="current-password"></label>
+        <button type="button" id="wizPassBtn" class="btn small">🔓 Entsperren</button>
+      </div>
     </div>
-    <p><strong>Schritt 2:</strong> Sichere deine Datei im selben Ordner. Ersetze dabei die ältere Datei «<span id="wizName">${esc(fname)}</span>».</p>
+    <p>${recent ? '<strong>Sichern:</strong>' : '<strong>Schritt 2:</strong>'} Sichere deine Datei im selben Ordner. Ersetze dabei die ältere Datei «<span id="wizName">${esc(fname)}</span>». <span class="muted small">Den Ordner merkt sich iOS für das nächste Mal.</span></p>
     <div class="dlg-actions column"><button type="button" data-value="save" class="btn primary" disabled>Wird vorbereitet …</button><button type="button" data-value="cancel" class="btn ghost">Abbrechen</button></div>`, {
     // Das Teilen-Menü muss direkt beim Tippen geöffnet werden, sonst blockiert Safari es
     onValue: (v) => { if (v === 'save' && blob) shareP = shareOrDownload(blob, fname, 'Ordni Sync-Datei', { strict: true }).then((ok) => ({ ok }), (error) => ({ error })); },
@@ -1010,6 +1016,8 @@ async function syncViaFiles() {
     });
   };
   prep();
+  const again = d.querySelector('#wizAgain');
+  if (again) again.onclick = () => { d.querySelector('#wizStep1').hidden = false; d.querySelector('#wizDone').hidden = true; };
   // Dateien einlesen; Verschlüsselte ohne (richtiges) Passwort merken wir uns für die Passwort-Eingabe
   const readFiles = async (files) => {
     const total = { added: 0, updated: 0, deleted: 0, folders: 0 };
@@ -1020,6 +1028,7 @@ async function syncViaFiles() {
         if (e.code === 'NEED_PASS' || e.code === 'WRONG_PASS') again.push(f); else { bad++; if (!why) why = `«${f.name}»: ${(e && e.message) || e}`; }
       }
     }
+    if (files.length - bad - again.length > 0) await setSetting('lastRead', Date.now());
     return { total, bad, again, why };
   };
   const report = (n, r) => {
@@ -1095,6 +1104,7 @@ async function mergeFilesInteractive(files) {
     }
   } finally { busy(false); }
   const got = total.added + total.updated + total.deleted + total.folders;
+  if (!wrongPass && bad < files.length) await setSetting('lastRead', Date.now());
   if (wrongPass) toast('Das Passwort stimmt nicht.', 5000);
   else toast(got ? `✓ Abgeglichen: ${total.added} neu, ${total.updated} aktualisiert, ${total.deleted} gelöscht${total.folders ? `, ${total.folders} bei Ordnern oder Checkliste` : ''}.` : bad ? `Nicht lesbar: ${why}` : '✓ Abgeglichen. Es gibt nichts Neues.', bad ? 7000 : 5000);
   if (got) render(true);
@@ -2458,7 +2468,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.17.0';
+const APP_VERSION = '1.17.1';
 // Anzeigen nacheinander ausführen: Sonst kann eine ältere, noch laufende Anzeige die neuere überschreiben
 // (zum Beispiel wenn man während des Abgleichs auf eine andere Seite wechselt).
 let rendering = null, renderAgain = false, againKeep = true;
