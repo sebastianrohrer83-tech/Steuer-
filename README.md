@@ -219,8 +219,8 @@ gespeichert wird, was sie nicht tut, was beim Aufrufen passiert (Hosting bei Ver
 wie man löscht und welche Rechte man hat (Schweizer Datenschutzgesetz, EDÖB). Der Test `test-privacy.js` belegt die Kernaussagen: Rundgang
 durch alle Seiten ohne Anfragen an fremde Adressen, keine Cookies, im Browser-Speicher höchstens der Zeitstempel des Installationshinweises.
 
-**Noch zu tun:** In `app.js` die Konstante `OPERATOR` (Name, Adresse, E-Mail der Betreiberin oder des Betreibers) ausfüllen. Leere Felder
-werden nicht angezeigt; solange alles leer ist, steht ein neutraler Hinweis. Der Text ist eine verständliche Beschreibung der
+**Betreiberangaben:** In `app.js` steht die Konstante `OPERATOR` (Name, Adresse, E-Mail der Betreiberin oder des Betreibers); sie erscheint auf der Datenschutzseite.
+Der Text ist eine verständliche Beschreibung der
 Funktionsweise und keine Rechtsberatung. Vor einem Verkauf sollte ihn eine Fachperson prüfen.
 
 ## Tipp «So fängst du an»

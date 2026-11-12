@@ -2102,13 +2102,13 @@ async function renderWelcome(params) {
 }
 
 // Angaben zum Betreiber der App (für die Datenschutzseite). Leere Felder werden nicht angezeigt.
-const OPERATOR = { name: '', adresse: '', email: '' };
-const PRIVACY_STAND = '6. November 2026';
+const OPERATOR = { name: 'Sebastian Rohrer', adresse: 'Mühlestrasse 2\n9100 Herisau\nSchweiz', email: 'kontakt@leankompass.com' };
+const PRIVACY_STAND = '12. November 2026';
 
 async function renderPrivacy(params) {
   const fromWelcome = params.get('from') === 'welcome';
   setHeader('Datenschutz', { back: fromWelcome ? '#/welcome' : '#/settings' });
-  const op = [OPERATOR.name, OPERATOR.adresse, OPERATOR.email].filter(Boolean);
+  const op = [OPERATOR.name, ...OPERATOR.adresse.split('\n'), OPERATOR.email].filter(Boolean);
   view().innerHTML = `
     <section class="legal">
       <div class="upsteps">
@@ -2512,7 +2512,7 @@ async function renderSummary() {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-const APP_VERSION = '1.17.2';
+const APP_VERSION = '1.17.3';
 // Anzeigen nacheinander ausführen: Sonst kann eine ältere, noch laufende Anzeige die neuere überschreiben
 // (zum Beispiel wenn man während des Abgleichs auf eine andere Seite wechselt).
 let rendering = null, renderAgain = false, againKeep = true;
