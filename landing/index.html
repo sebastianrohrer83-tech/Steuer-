@@ -1,0 +1,313 @@
+<!doctype html><html lang="de-CH"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="icon" href="assets/favicon.svg" type="image/svg+xml"><meta name="theme-color" content="#0f1f3d"><meta property="og:title" content="Ordni: der Steuerordner für die Familie"><meta property="og:description" content="Belege scannen, ordnen und mit der Familie teilen. Deine Daten bleiben auf deinem Handy."><meta property="og:type" content="website"><title>Ordni: der Steuerordner für die Familie</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Ordni ist der Steuerordner für die Familie. Belege mit dem Handy scannen, in Ordnern ablegen und mit der Familie teilen. Deine Daten bleiben auf deinem Handy.">
+<style>
+  /* Layout: dunkler Kopf wie der Ordnerdeckel der App, darunter die helle Seite mit Ordnerreitern in den elf Ordnerfarben der App.
+     Ein Look für beide Themen (bewusst nur hell), alle Farben sind explizit gesetzt. */
+  :root {
+    color-scheme: light;
+    --ink: #0f1f3d; --blue: #2b50e8; --blue-dk: #1f3fc4; --paper: #f2f5fa; --white: #ffffff;
+    --muted: #566683; --line: #dbe3ef; --on-ink: #b9c5dd;
+    --font: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --r1: #14a76c; --r2: #5b5bf0; --r3: #f0a020; --r4: #8b5cf6; --r5: #ee4266; --r6: #f97a2c; --r7: #64748b; --r8: #1ea5e8; --r9: #e0489a; --r10: #0f9aa0; --r11: #8a97b0;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font); font-size: 17px; line-height: 1.55;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0; }
+  img { max-width: 100%; display: block; }
+  a { color: var(--blue); }
+  h1, h2, h3 { margin: 0; text-wrap: balance; letter-spacing: -.02em; line-height: 1.12; }
+  h1 { font-size: clamp(2.3rem, 7vw, 3.9rem); font-weight: 800; }
+  h2 { font-size: clamp(1.6rem, 4.4vw, 2.3rem); font-weight: 800; }
+  h3 { font-size: 1.2rem; font-weight: 800; letter-spacing: -.01em; }
+  p { margin: 0 0 12px; } p:last-child { margin-bottom: 0; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  :focus-visible { outline: 3px solid color-mix(in oklab, var(--blue) 60%, #fff); outline-offset: 3px; border-radius: 6px; }
+  .skip { position: absolute; left: -999px; top: 8px; background: var(--white); color: var(--ink); padding: 10px 14px; border-radius: 10px; z-index: 20; }
+  .skip:focus { left: 16px; }
+
+  /* Kopf */
+  .top { background: var(--ink); color: #fff; margin: 0 calc(-1 * max(16px, env(safe-area-inset-right, 0px))) 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+    padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); position: relative; padding-top: env(safe-area-inset-top, 0px); }
+  nav.bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 0; }
+  .brand { display: block; width: 132px; flex: none; }
+  .brand svg { width: 100%; height: auto; display: block; }
+  nav.bar .links { display: none; gap: 22px; align-items: center; }
+  nav.bar .links a { color: var(--on-ink); text-decoration: none; font-weight: 600; font-size: .95rem; }
+  nav.bar .links a:hover { color: #fff; }
+  nav.bar .mob { display: inline-flex; }
+  @media (min-width: 760px) { nav.bar .links { display: flex; } nav.bar .mob { display: none; } }
+  .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 12px 26px; border-radius: 16px; font: inherit; font-weight: 800; font-size: 1.05rem; text-decoration: none; background: var(--blue); color: #fff; border: 2px solid var(--blue); }
+  .btn:hover { background: var(--blue-dk); border-color: var(--blue-dk); }
+  .btn.ghost { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .35); }
+  .btn.ghost:hover { background: rgba(255, 255, 255, .08); border-color: #fff; }
+  .btn.small { min-height: 42px; padding: 8px 18px; font-size: .95rem; border-radius: 12px; }
+  .btn.on-light.ghost { color: var(--ink); border-color: var(--line); background: var(--white); }
+
+  .hero { display: grid; gap: 36px; padding: 28px 0 78px; align-items: center; }
+  @media (min-width: 860px) { .hero { grid-template-columns: 1.15fr .85fr; gap: 56px; padding: 40px 0 96px; } }
+  .hero p.sub { font-size: 1.2rem; color: var(--on-ink); max-width: 34ch; margin: 18px 0 26px; }
+  .hero .cta { display: flex; gap: 12px; flex-wrap: wrap; }
+  .hero .note { color: var(--on-ink); font-size: .92rem; margin: 16px 0 0; max-width: 44ch; }
+  .facts { list-style: none; padding: 0; margin: 26px 0 0; display: grid; gap: 8px; color: #fff; font-weight: 700; font-size: .98rem; }
+  .facts li { display: flex; gap: 10px; align-items: baseline; }
+  .facts li::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--r1); flex: none; transform: translateY(1px); }
+  .facts li:nth-child(2)::before { background: var(--r3); } .facts li:nth-child(3)::before { background: var(--r8); }
+
+  .phone { width: min(290px, 74vw); margin: 0 auto; border: 9px solid #0a1429; border-radius: 42px; overflow: hidden; background: var(--paper); box-shadow: 0 40px 60px -30px rgba(0, 0, 0, .55), 0 0 0 1px rgba(255, 255, 255, .12); }
+  .phone.sm { width: min(240px, 66vw); border-width: 7px; border-radius: 34px; box-shadow: 0 28px 40px -26px rgba(15, 31, 61, .45), 0 0 0 1px var(--line); border-color: #0a1429; }
+  .phone img { width: 100%; height: auto; }
+  .cap { text-align: center; color: var(--muted); font-size: .85rem; margin-top: 10px; }
+
+  /* Ordnerreiter: die elf Farben der App sitzen auf der Kante zur hellen Seite */
+  .tabs { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); bottom: 0; max-width: 1080px; margin: 0 auto; display: flex; gap: 6px; align-items: flex-end; }
+  .tabs i { flex: 1; border-radius: 10px 10px 0 0; display: block; }
+  .tabs i:nth-child(odd) { height: 22px; } .tabs i:nth-child(even) { height: 14px; } .tabs i:nth-child(3n) { height: 30px; }
+
+  section.s { padding: 72px 0 8px; }
+  section.s > .wrap > .lead { color: var(--muted); font-size: 1.15rem; max-width: 56ch; margin-top: 14px; }
+  .problem { padding-top: 70px; }
+  .problem p { font-size: 1.3rem; line-height: 1.45; max-width: 30ch; font-weight: 700; letter-spacing: -.01em; }
+  .problem p span { color: var(--muted); font-weight: 600; }
+  @media (min-width: 760px) { .problem p { font-size: 1.7rem; max-width: 36ch; } }
+
+  .steps { display: grid; gap: 44px; margin-top: 36px; counter-reset: st; }
+  @media (min-width: 860px) { .steps { grid-template-columns: repeat(3, 1fr); gap: 34px; } }
+  .step { display: grid; gap: 18px; justify-items: center; text-align: center; }
+  .step .phone { order: 2; } .step .txt { order: 1; }
+  @media (min-width: 860px) { .step { text-align: left; justify-items: start; } .step .phone { margin: 0; order: 0; } .step .txt { order: 1; } }
+  .step .n { width: 40px; height: 40px; border-radius: 12px; background: var(--ink); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 1.1rem; }
+  .step h3 { margin: 4px 0 8px; }
+  .step p { color: var(--muted); max-width: 32ch; }
+  .step .txt { display: grid; gap: 0; justify-items: inherit; }
+  @media (max-width: 859px) { .step .txt { justify-items: center; } }
+
+  .feat { display: grid; gap: 30px 44px; margin-top: 34px; }
+  @media (min-width: 760px) { .feat { grid-template-columns: 1fr 1fr; } }
+  .feat article { position: relative; padding-top: 18px; border-top: 2px solid var(--line); }
+  .feat article::before { content: ""; position: absolute; left: 0; top: -2px; width: 46px; height: 7px; border-radius: 0 0 4px 4px; background: var(--c, var(--r1)); }
+  .feat h3 { margin-bottom: 6px; } .feat p { color: var(--muted); }
+  .feat article:nth-child(1) { --c: var(--r5); } .feat article:nth-child(2) { --c: var(--r8); } .feat article:nth-child(3) { --c: var(--r4); }
+  .feat article:nth-child(4) { --c: var(--r3); } .feat article:nth-child(5) { --c: var(--r1); } .feat article:nth-child(6) { --c: var(--r10); }
+
+
+  .trial { background: var(--white); border: 2px solid var(--line); border-top: 8px solid var(--blue); border-radius: 28px; padding: 34px 24px; display: grid; gap: 26px; margin-top: 76px; }
+  @media (min-width: 760px) { .trial { grid-template-columns: 1.1fr .9fr; padding: 48px 46px; gap: 44px; align-items: start; } }
+  .trial h2 { font-size: clamp(1.9rem, 5vw, 2.7rem); }
+  .trial p { color: var(--muted); } .trial .fine { font-size: .92rem; margin-top: 16px; }
+  .trial ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .trial li { display: flex; gap: 12px; align-items: baseline; font-weight: 600; }
+  .trial li::before { content: ""; width: 14px; height: 8px; border-left: 3px solid var(--r1); border-bottom: 3px solid var(--r1); transform: rotate(-45deg) translateY(-3px); flex: none; }
+
+  .privacy { background: var(--ink); color: #fff; border-radius: 28px; padding: 38px 24px; display: grid; gap: 26px; margin-top: 76px; }
+  @media (min-width: 760px) { .privacy { grid-template-columns: 1fr 1fr; padding: 52px 48px; gap: 44px; align-items: start; } }
+  .privacy h2 { font-size: clamp(1.9rem, 5vw, 2.7rem); }
+  .privacy p { color: var(--on-ink); }
+  .privacy ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .privacy li { display: flex; gap: 12px; align-items: baseline; color: #fff; font-weight: 600; }
+  .privacy li::before { content: ""; width: 14px; height: 8px; border-left: 3px solid var(--r1); border-bottom: 3px solid var(--r1); transform: rotate(-45deg) translateY(-3px); flex: none; }
+  .privacy a { color: #fff; }
+
+  .who { display: grid; gap: 14px; margin-top: 30px; }
+  .who p { color: var(--muted); max-width: 62ch; }
+
+  details { border-top: 1px solid var(--line); padding: 4px 0; }
+  details:last-of-type { border-bottom: 1px solid var(--line); }
+  summary { cursor: pointer; font-weight: 800; padding: 16px 0; list-style: none; display: flex; justify-content: space-between; gap: 16px; min-height: 56px; align-items: center; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: ""; width: 10px; height: 10px; border-right: 2.5px solid var(--muted); border-bottom: 2.5px solid var(--muted); transform: rotate(45deg); flex: none; margin-right: 4px; transition: transform .15s; }
+  details[open] summary::after { transform: rotate(-135deg); }
+  details p { color: var(--muted); padding: 0 0 18px; max-width: 64ch; }
+  .faq { margin-top: 28px; }
+
+  .final { text-align: center; padding: 84px 0 76px; display: grid; gap: 22px; justify-items: center; }
+  .final p { color: var(--muted); max-width: 44ch; }
+  .final .row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .final .btn { background: var(--ink); border-color: var(--ink); }
+  .final .btn:hover { background: #1a2f5e; border-color: #1a2f5e; }
+
+  footer { border-top: 1px solid var(--line); padding: 30px 0 calc(34px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 26px; color: var(--muted); font-size: .94rem; }
+  footer .row { display: flex; gap: 22px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+  footer .brand { width: 110px; }
+  footer nav { display: flex; gap: 20px; flex-wrap: wrap; }
+  footer a { color: var(--ink); font-weight: 600; }
+  #impressum h3 { margin-bottom: 8px; color: var(--ink); }
+  .stand { font-size: .85rem; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } summary::after { transition: none; } }
+</style></head><body>
+
+<a class="skip" href="#inhalt">Zum Inhalt</a>
+
+<header class="top">
+  <div class="wrap">
+    <nav class="bar" aria-label="Hauptmenü">
+      <a class="brand" href="#" aria-label="Ordni, Startseite"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 98" role="img" aria-label="Ordni"><g transform="translate(0 6) scale(.9)"><path d="M10 31C10 21 16 14 25 14H38C41 14 43.5 15 45.5 17L50 22H79C85.6 22 90 26.4 90 33V74H10Z" fill="#2B50E8"/><rect x="6" y="36" width="88" height="53" rx="11" fill="#FFFFFF"/><path d="M33 63L45.5 75.5L68 51" fill="none" stroke="#0F1F3D" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></g><g transform="translate(110 7)"><g fill="none" stroke="#FFFFFF" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"><circle cx="34" cy="50" r="22.5"/><path d="M78 72.5V27.5M78 46C78 34.5 86.5 27.5 97 27.5"/><circle cx="138" cy="50" r="22.5"/><path d="M160.5 8V72.5"/><path d="M179.5 72.5V27.5M179.5 46C179.5 34.5 188 27.5 198 27.5C209.5 27.5 216 35.5 216 47V72.5"/><path d="M235 27.5V72.5"/></g><circle cx="235" cy="10" r="6.5" fill="#2B50E8"/></g></svg></a>
+      <div class="links">
+        <a href="#so-gehts">So funktioniert es</a>
+        <a href="#funktionen">Funktionen</a>
+        <a href="#testen">Gratis testen</a>
+        <a href="#datenschutz">Datenschutz</a>
+        <a href="#fragen">Fragen</a>
+        <a class="btn small" href="https://steuerordner.vercel.app/">Ausprobieren</a>
+      </div>
+      <a class="btn small mob" href="https://steuerordner.vercel.app/">Ausprobieren</a>
+    </nav>
+    <div class="hero">
+      <div>
+        <h1>Alle Steuerbelege. Ein Ort.</h1>
+        <p class="sub">Ordni ist der Steuerordner für die Familie: Belege mit dem Handy scannen, in Ordnern ablegen und gemeinsam sammeln.</p>
+        <div class="cta">
+          <a class="btn" href="https://steuerordner.vercel.app/">Ordni ausprobieren</a>
+          <a class="btn ghost" href="#testen">Gratis testen</a>
+        </div>
+        <p class="note">Die ersten 30 Tester nutzen Ordni gratis für die Steuerjahre 2026 und 2027. Läuft im Browser, ohne Konto, und lässt sich auf den Home-Bildschirm legen. Ordni ist in der Testphase.</p>
+        <ul class="facts">
+          <li>Deine Belege bleiben auf deinem Handy</li>
+          <li>Keine Werbung, kein Tracking, keine Cookies</li>
+          <li>Abgleich über deinen eigenen Cloud-Ordner</li>
+        </ul>
+      </div>
+      <div>
+        <figure class="phone" style="margin:0 auto"><img src="assets/home.jpg" width="390" height="664" alt="Startseite von Ordni: Steuerjahr 2026, acht gesammelte Belege, Checkliste mit Fortschrittsbalken"></figure>
+        <p class="cap" style="color:var(--on-ink)">Beispieldaten</p>
+      </div>
+    </div>
+  </div>
+  <div class="tabs" aria-hidden="true"><i style="background:var(--r1)"></i><i style="background:var(--r2)"></i><i style="background:var(--r3)"></i><i style="background:var(--r4)"></i><i style="background:var(--r5)"></i><i style="background:var(--r6)"></i><i style="background:var(--r7)"></i><i style="background:var(--r8)"></i><i style="background:var(--r9)"></i><i style="background:var(--r10)"></i><i style="background:var(--r11)"></i></div>
+</header>
+
+<main id="inhalt">
+  <section class="s problem" aria-labelledby="h-problem">
+    <div class="wrap">
+      <h2 id="h-problem" style="position:absolute;left:-999px">Das kennst du</h2>
+      <p>Die Steuererklärung steht an, und die Belege liegen überall: im Briefkasten, im Postfach, in der Fotogalerie. <span>Ordni sammelt sie das ganze Jahr an einem Ort.</span></p>
+    </div>
+  </section>
+
+  <section class="s" id="so-gehts" aria-labelledby="h-steps">
+    <div class="wrap">
+      <h2 id="h-steps">So funktioniert Ordni</h2>
+      <div class="steps">
+        <div class="step">
+          <figure class="phone sm" style="margin:0"><img src="assets/pruefbild.jpg" width="390" height="664" alt="Scan-Ansicht: Das Blatt ist erkannt und mit einem grünen Rahmen markiert" loading="lazy"></figure>
+          <div class="txt"><span class="n" aria-hidden="true">1</span>
+            <h3>Blatt fotografieren</h3>
+            <p>Lege das Blatt auf den Tisch. Ordni erkennt die Ränder und schneidet es zu. Passt etwas nicht, ziehst du die Ecken zurecht oder bearbeitest die Seite später nochmals.</p></div>
+        </div>
+        <div class="step">
+          <figure class="phone sm" style="margin:0"><img src="assets/ordner.jpg" width="390" height="664" alt="Ordner Krankenkasse mit zwei Belegen, benannt nach Beleg, Jahr und Person" loading="lazy"></figure>
+          <div class="txt"><span class="n" aria-hidden="true">2</span>
+            <h3>Ablegen, ohne zu tippen</h3>
+            <p>Die App schlägt den Namen vor, zum Beispiel «Krankenkasse 2026 – Anna Muster». Elf Ordner für die typischen Themen sind schon angelegt.</p></div>
+        </div>
+        <div class="step">
+          <figure class="phone sm" style="margin:0"><img src="assets/zahlen.jpg" width="390" height="664" alt="Seite Zahlen fürs Portal mit den erfassten Beträgen nach Person und Ordner" loading="lazy"></figure>
+          <div class="txt"><span class="n" aria-hidden="true">3</span>
+            <h3>Bereit fürs Portal</h3>
+            <p>Die Checkliste zeigt, was noch fehlt. «Zahlen fürs Portal» listet alle Beträge auf einer Seite, als PDF zum Sichern. Für den Upload gibt es PDFs oder ein ZIP-Paket.</p></div>
+        </div>
+      </div>
+      <p class="cap" style="margin-top:22px">Alle Bilder zeigen erfundene Beispieldaten.</p>
+    </div>
+  </section>
+
+  <section class="s" id="funktionen" aria-labelledby="h-feat">
+    <div class="wrap">
+      <h2 id="h-feat">Was Ordni kann</h2>
+      <div class="feat">
+        <article><h3>Eine Checkliste für jede Person</h3><p>Neun Fragen, und jede Person im Haushalt sieht, welche Belege sie braucht: Lohnausweis, Säule 3a, Hypothek, Unterhalt und mehr. Das ist eine allgemeine Orientierung, keine Steuerberatung.</p></article>
+        <article><h3>Gemeinsam sammeln</h3><p>Alle legen ihre Belege ab. Der Abgleich läuft über einen Ordner in iCloud Drive, Google Drive, OneDrive oder einem anderen Dienst, den ihr selbst teilt. Es gibt kein Ordni-Konto. Auf dem Computer mit Chrome läuft er von selbst, auf dem iPhone sind es ein paar Tipps.</p></article>
+        <article><h3>Auf Wunsch verschlüsselt</h3><p>Mit einem Passwort sind die Dateien im gemeinsamen Ordner verschlüsselt (AES-256). Das Passwort bleibt bei euch.</p></article>
+        <article><h3>Seiten nachbearbeiten</h3><p>Falsch zugeschnitten oder der falsche Filter? Du öffnest das Originalfoto nochmals, setzt die Ecken neu und wählst Dokument, Farbe oder Original. Das Original bleibt auf deinem Gerät.</p></article>
+        <article><h3>Nichts geht aus Versehen verloren</h3><p>Gelöschte Belege liegen 30 Tage im Papierkorb. Ordni erinnert dich ans Sichern und meldet, wenn der Speicher knapp wird.</p></article>
+        <article><h3>Zahlen fürs Portal</h3><p>Trage bei jedem Beleg den Betrag ein. Ordni zeigt dir alle Zahlen nach Person und Ordner auf einer Seite und macht daraus ein PDF zum Sichern, zum Abtippen im Steuerportal.</p></article>
+        <article><h3>Installiert wie eine App</h3><p>Ordni läuft im Browser und lässt sich auf den Home-Bildschirm legen. Ein App-Store-Konto brauchst du nicht.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap" id="testen" aria-labelledby="h-test">
+    <div class="trial">
+      <div>
+        <h2 id="h-test">Die ersten 30 testen gratis.</h2>
+        <p style="margin-top:14px">Wir suchen 30 Haushalte in der Schweiz, die Ordni für ihre nächste Steuererklärung ausprobieren. Du bekommst die volle App, gratis für die Steuerjahre 2026 und 2027. Dafür wünschen wir uns ehrliche Rückmeldung.</p>
+        <p class="fine">Das Angebot gilt für die ersten 30 Tester. Es zählt das Steuerjahr, nicht das Datum. Der spätere Preis steht noch nicht fest.</p>
+      </div>
+      <div>
+        <ul>
+          <li>Du nutzt Ordni wirklich für eine Steuererklärung</li>
+          <li>Du meldest Fehler und Unklarheiten, am besten mit Screenshot</li>
+          <li>Am Ende füllst du einen kurzen Rückmeldebogen aus (ca. 5 Minuten)</li>
+          <li>Du schickst uns keine echten Steuerdaten</li>
+        </ul>
+        <p style="margin-top:20px"><a class="btn" href="https://www.instagram.com/myordni/">Platz anfragen auf Instagram</a></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap" id="datenschutz" aria-labelledby="h-priv">
+    <div class="privacy">
+      <div>
+        <h2 id="h-priv">Deine Belege bleiben bei dir.</h2>
+        <p style="margin-top:14px">Steuerbelege enthalten Lohn, Vermögen und Familienverhältnisse. Darum liegen sie bei Ordni auf deinem Gerät und nicht auf unserem Server.</p>
+      </div>
+      <div>
+        <ul>
+          <li>Kein Konto, keine E-Mail-Adresse nötig</li>
+          <li>Keine Cookies, keine Werbung, kein Tracking</li>
+          <li>Wir haben geprüft: Beim Benutzen der App gehen keine Anfragen an fremde Adressen</li>
+          <li>Ordni hat keine eigene Sperre: Schütze dein Handy mit einem Code</li>
+        </ul>
+        <p style="margin-top:18px"><a href="https://steuerordner.vercel.app/#/privacy">Die ganze Datenschutzerklärung lesen</a></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="s" aria-labelledby="h-who">
+    <div class="wrap">
+      <h2 id="h-who">Für Haushalte in der Schweiz</h2>
+      <div class="who">
+        <p>Ordni ist für Familien und Paare gedacht, die ihre Belege nicht jedes Jahr neu zusammensuchen wollen. Die Checkliste und die Ordner gelten für die typischen Belegarten.</p>
+        <p>Welche Unterlagen dein Kanton genau verlangt, steht in der Wegleitung deines Kantons. Ordni ersetzt weder diese noch eine Steuerberatung und füllt keine Steuererklärung aus.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="s" id="fragen" aria-labelledby="h-faq">
+    <div class="wrap">
+      <h2 id="h-faq">Häufige Fragen</h2>
+      <div class="faq">
+        <details><summary>Brauche ich ein Konto?</summary><p>Nein. Du öffnest Ordni im Browser und legst los. Es gibt keine Anmeldung.</p></details>
+        <details><summary>Wo liegen meine Belege?</summary><p>Auf deinem Gerät, im Speicher deines Browsers bzw. der installierten App. Sichere sie ab und zu: «Jetzt sichern» in Ordni schreibt eine Sicherungsdatei in deinen Cloud-Ordner. Ordni erinnert dich daran.</p></details>
+        <details><summary>Wie arbeitet die Familie zusammen?</summary><p>Ihr teilt einen Ordner in iCloud Drive, Google Drive oder einem anderen Dienst. Jedes Handy schreibt seine eigene Datei dort hinein und liest die der anderen. Mit einem Passwort sind diese Dateien verschlüsselt. Auf dem Computer mit Chrome läuft der Abgleich von selbst, auf dem iPhone brauchst du ein paar Tipps, weil Apple Web-Apps das Schreiben in die Dateien-App nicht erlaubt.</p></details>
+        <details><summary>Ist Ordni im App Store?</summary><p>Noch nicht. Du installierst Ordni direkt aus dem Browser: auf dem iPhone in Safari über «Zum Home-Bildschirm», auf Android in Chrome.</p></details>
+        <details><summary>Füllt Ordni meine Steuererklärung aus?</summary><p>Nein. Ordni sammelt und ordnet deine Belege und zeigt dir die Zahlen. Eintragen und einreichen machst du selbst im Steuerportal deines Kantons.</p></details>
+        <details><summary>Was kostet Ordni?</summary><p>Die ersten 30 Tester nutzen Ordni gratis für die Steuerjahre 2026 und 2027. Danach gilt ein Jahrespreis, den wir vor dem Start bekannt geben.</p></details>
+        <details><summary>Gibt es Ordni auf Französisch oder Italienisch?</summary><p>Noch nicht. Ordni gibt es zurzeit auf Deutsch.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="final wrap" aria-labelledby="h-final">
+    <h2 id="h-final">Probiere Ordni für dein nächstes Steuerjahr.</h2>
+    <p>Das Ausprobieren dauert eine Minute. Fragen oder Ideen? Schreib uns auf Instagram.</p>
+    <div class="row" style="justify-content:center">
+      <a class="btn" href="https://steuerordner.vercel.app/">Ordni ausprobieren</a>
+      <a class="btn ghost on-light" href="https://www.instagram.com/myordni/">Instagram: @myordni</a>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <div class="row">
+    <a class="brand" href="#" aria-label="Ordni, Seitenanfang"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 98" role="img" aria-label="Ordni"><g transform="translate(0 6) scale(.9)"><path d="M10 31C10 21 16 14 25 14H38C41 14 43.5 15 45.5 17L50 22H79C85.6 22 90 26.4 90 33V74H10Z" fill="#2B50E8"/><rect x="6" y="36" width="88" height="53" rx="11" fill="#0F1F3D"/><path d="M33 63L45.5 75.5L68 51" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></g><g transform="translate(110 7)"><g fill="none" stroke="#0F1F3D" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"><circle cx="34" cy="50" r="22.5"/><path d="M78 72.5V27.5M78 46C78 34.5 86.5 27.5 97 27.5"/><circle cx="138" cy="50" r="22.5"/><path d="M160.5 8V72.5"/><path d="M179.5 72.5V27.5M179.5 46C179.5 34.5 188 27.5 198 27.5C209.5 27.5 216 35.5 216 47V72.5"/><path d="M235 27.5V72.5"/></g><circle cx="235" cy="10" r="6.5" fill="#2B50E8"/></g></svg></a>
+    <nav aria-label="Rechtliches"><a href="#impressum">Impressum</a><a href="https://steuerordner.vercel.app/#/privacy">Datenschutz</a><a href="https://www.instagram.com/myordni/">Instagram</a></nav>
+  </div>
+  <div id="impressum">
+    <h3>Impressum</h3>
+    <p>Sebastian Rohrer<br>Mühlestrasse 2<br>9100 Herisau<br>Schweiz<br><a href="mailto:kontakt@leankompass.com">kontakt@leankompass.com</a></p>
+  </div>
+  <p class="stand">Ordni ist in der Testphase. Die Checkliste ist eine allgemeine Orientierung und ersetzt keine Steuerberatung. Die Bilder zeigen Beispieldaten.</p>
+</footer>
+</body></html>
